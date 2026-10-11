@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="description" content="휴대폰으로 보낸 말을 집에 둔 기기가 소리 내어 읽어 주는 가족 안내 방송">
+<title>TTS 스피커</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f2f7; --surface: #ffffff; --surface-2: #f7f7fa; --fill: #e9e9ef; --fill-2: #dedee5;
+    --ink: #1c1c1e; --ink-2: #3a3a3c; --dim: #6c6c70; --line: #e3e3e8;
+    --accent: #0066d6; --accent-press: #0055b3; --accent-soft: #e6f0fc; --accent-ink: #0058b8; --on-accent: #ffffff;
+    --ok: #1f7a35; --ok-bg: #1f8a3b; --ok-soft: #e8f7ec;
+    --warn-ink: #7a4300; --warn-soft: #fff4e0; --warn-line: #ffd79a;
+    --danger: #c8102e; --danger-soft: #ffecee;
+    --r-sm: 10px; --r: 14px; --r-lg: 20px; --r-pill: 999px;
+    --sh: 0 1px 2px rgb(0 0 0 / .05), 0 6px 18px -8px rgb(0 0 0 / .12);
+    --fs-xs: 13px; --fs-sm: 14px; --fs: 16px; --fs-lg: 18px; --fs-xl: 22px;
+    --t: .18s; --ease: cubic-bezier(.2, .8, .2, 1);
+    --gap: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --surface: #1c1c1e; --surface-2: #242426; --fill: #2c2c2e; --fill-2: #3a3a3c;
+      --ink: #f2f2f7; --ink-2: #d1d1d6; --dim: #a1a1a8; --line: #38383a;
+      --accent: #0a74e8; --accent-press: #2b8af0; --accent-soft: #0b2747; --accent-ink: #64aaff;
+      --ok: #4ade80; --ok-bg: #1f7a35; --ok-soft: #0f2d18;
+      --warn-ink: #ffd60a; --warn-soft: #2b2108; --warn-line: #5c4a10;
+      --danger: #ff6b61; --danger-soft: #3a1212;
+      --sh: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: var(--fs)/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    word-break: keep-all; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; touch-action: manipulation;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); min-height: 100vh; overflow-x: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px var(--gap); background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px); }
+  .brand { display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 0; min-height: 44px; font-weight: 700; font-size: var(--fs-lg); }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  .top .sp { flex: 1; }
+  .pillbtn { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill); background: var(--fill); font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+  .pillbtn:active { background: var(--fill-2); }
+
+  main { max-width: 560px; margin: 0 auto; padding: 4px var(--gap) 40px; }
+  body[data-mode=recv] main { max-width: 820px; }
+  h1 { font-size: 26px; line-height: 1.25; margin: 18px 4px 16px; letter-spacing: -.01em; }
+  h2 { font-size: var(--fs); margin: 0 0 10px; }
+  .card { background: var(--surface); border-radius: var(--r-lg); padding: 16px; margin: 0 0 14px; box-shadow: var(--sh); }
+  .muted { color: var(--dim); }
+  .small { font-size: var(--fs-xs); color: var(--dim); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 20px; border: 0; border-radius: var(--r); background: var(--accent); color: var(--on-accent);
+    font-weight: 700; font-size: var(--fs-lg); transition: transform var(--t) var(--ease), background var(--t); }
+  .btn:active { transform: scale(.97); background: var(--accent-press); }
+  .btn:disabled { opacity: .45; }
+  .btn.big { min-height: 60px; font-size: 20px; border-radius: var(--r-lg); width: 100%; }
+  .btn.ok { background: var(--ok-bg); }
+  .btn.ghost { background: var(--fill); color: var(--ink); }
+  .btn.ghost:active { background: var(--fill-2); }
+  .btn.danger { background: var(--danger-soft); color: var(--danger); }
+  .btn.sm { min-height: 44px; font-size: var(--fs); padding: 0 14px; }
+
+  input[type=text], input[type=time], input:not([type]), textarea, select { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2); font-size: 16px; }
+  textarea { resize: none; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  label.f { display: block; font-size: var(--fs-sm); color: var(--dim); font-weight: 600; margin: 0 0 6px 2px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { min-height: 44px; padding: 0 16px; border-radius: var(--r-pill); border: 1px solid var(--line); background: var(--surface); font-size: var(--fs); font-weight: 600; color: var(--ink-2); }
+  .chip[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+  .warn { background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn-ink); border-radius: var(--r); padding: 12px 14px; margin: 0 0 14px; font-size: var(--fs-sm); }
+  .warn p { margin: 0; } .warn p + p { margin-top: 6px; }
+
+  /* 처음 화면 */
+  .pick { display: grid; grid-template-columns: 56px 1fr; grid-template-rows: auto auto; column-gap: 14px; align-items: center; width: 100%; text-align: left; border: 0; background: var(--surface);
+    border-radius: var(--r-lg); padding: 18px; margin: 0 0 12px; box-shadow: var(--sh); transition: transform var(--t) var(--ease); }
+  .pick:active { transform: scale(.98); }
+  .pick .em { grid-row: span 2; font-size: 38px; text-align: center; }
+  .pick b { font-size: 20px; }
+  .pick small { color: var(--dim); font-size: var(--fs-sm); }
+  .note { font-size: var(--fs-xs); color: var(--dim); margin: 18px 6px; }
+
+  /* 스피커 */
+  .status { display: flex; align-items: center; gap: 8px; margin: 8px 2px 12px; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
+  .dot.ok { background: #34c759; box-shadow: 0 0 0 4px rgb(52 199 89 / .18); }
+  .dot.retry { background: #ff9f0a; animation: blink 1s infinite; }
+  .dot.bad { background: #ff3b30; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .status .who { margin-left: auto; background: var(--fill); padding: 4px 12px; border-radius: var(--r-pill); }
+  .tapbar { width: 100%; min-height: 52px; border: 0; border-radius: var(--r); background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: var(--fs); margin: 0 0 12px; padding: 8px 14px; }
+
+  .msgcard { background: var(--surface); border-radius: 26px; padding: 22px 20px; margin: 0 0 14px; box-shadow: var(--sh); min-height: 46vh; display: flex; flex-direction: column; justify-content: center; text-align: center;
+    border: 3px solid transparent; transition: border-color .4s; }
+  .msgcard.fresh { border-color: var(--accent); animation: pop .5s var(--ease); }
+  @keyframes pop { 0% { transform: scale(.97); } 60% { transform: scale(1.01); } 100% { transform: none; } }
+  .msgcard .meta { font-size: var(--fs-lg); color: var(--dim); margin-bottom: 8px; min-height: 1.5em; }
+  .msgcard .meta b { color: var(--ink); }
+  .bigtext { font-size: clamp(30px, 8.5vw, 76px); line-height: 1.25; font-weight: 800; letter-spacing: -.02em; margin: 6px 0 18px; white-space: pre-wrap; }
+  .msgcard.idle .bigtext { font-size: clamp(22px, 5vw, 34px); font-weight: 600; color: var(--dim); }
+  .clock { font-size: clamp(40px, 12vw, 96px); font-weight: 200; color: var(--ink-2); letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .acts { display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 520px; width: 100%; margin: 0 auto; }
+  .acts .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .quietTag { display: inline-block; font-size: var(--fs-sm); background: var(--fill); padding: 2px 10px; border-radius: var(--r-pill); margin-left: 4px; }
+  .speaking .bigtext::after { content: " 🔊"; font-size: .6em; animation: blink 1s infinite; }
+
+  .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 14px; }
+  .tool { min-height: 56px; border: 0; border-radius: var(--r); background: var(--surface); box-shadow: var(--sh); font-weight: 600; font-size: var(--fs); color: var(--ink-2); padding: 6px; }
+  .tool[aria-expanded=true] { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .pair { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+  .qr { width: 200px; height: 200px; background: #fff; padding: 10px; border-radius: var(--r); display: grid; place-items: center; }
+  .qr img, .qr canvas { width: 180px !important; height: 180px !important; image-rendering: pixelated; }
+  .code { font-size: 34px; font-weight: 800; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+  @media (max-width: 560px) { .pair { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--fill); border-radius: var(--r); padding: 3px; gap: 3px; }
+  .seg button { min-height: 42px; border: 0; border-radius: 11px; background: none; font-weight: 600; color: var(--ink-2); }
+  .seg button[aria-pressed=true] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+  .set { display: grid; gap: 16px; }
+  .set .line { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+  .set .line > span { flex: 1; }
+  input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+  .sw { appearance: none; -webkit-appearance: none; width: 51px; height: 31px; border-radius: 31px; background: var(--fill-2); position: relative; flex: none; transition: background var(--t); margin: 0; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .2); transition: transform var(--t) var(--ease); }
+  .sw:checked { background: #34c759; }
+  .sw:checked::after { transform: translateX(20px); }
+  .times { display: flex; gap: 8px; align-items: center; }
+  .times input { width: auto; flex: 1; min-width: 0; }
+
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list li { padding: 12px 2px; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
+  .list li:first-child { border-top: 0; }
+  .list .tx { flex: 1; min-width: 0; }
+  .list .tx b { font-weight: 600; }
+  .list .tm { font-size: var(--fs-xs); color: var(--dim); white-space: nowrap; }
+  .badge { display: inline-block; font-size: var(--fs-xs); font-weight: 700; padding: 2px 8px; border-radius: var(--r-pill); background: var(--fill); color: var(--dim); margin: 4px 4px 0 0; }
+  .badge.sp { background: var(--accent-soft); color: var(--accent-ink); }
+  .badge.ack { background: var(--ok-soft); color: var(--ok); }
+  .badge.fail { background: var(--danger-soft); color: var(--danger); }
+  .linkbtn { border: 0; background: none; color: var(--accent-ink); font-weight: 600; min-height: 44px; padding: 0 6px; }
+  .empty { color: var(--dim); font-size: var(--fs-sm); padding: 8px 2px; }
+
+  /* 보내기 */
+  .compose textarea { min-height: 96px; font-size: 18px; }
+  .compose .row { margin-top: 10px; }
+  .count { font-size: var(--fs-xs); color: var(--dim); font-variant-numeric: tabular-nums; }
+  .phr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .phr button.p { min-height: 56px; border: 0; border-radius: var(--r); background: var(--fill); font-size: var(--fs); font-weight: 600; padding: 8px 10px; text-align: center; line-height: 1.3; }
+  .phr button.p:active { background: var(--accent); color: var(--on-accent); transform: scale(.97); }
+  .ped { display: flex; align-items: center; gap: 4px; padding: 6px 4px 6px 12px; border-radius: var(--r); background: var(--fill); grid-column: 1 / -1; }
+  .ped span { flex: 1; min-width: 0; }
+  .ped button { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 18px; border-radius: 10px; color: var(--ink-2); }
+  .ped button.x { color: var(--danger); }
+  .hrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -6px 0 6px; }
+  .hrow h2 { margin: 0; }
+  .spk li { align-items: center; }
+  .me { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .me label { white-space: nowrap; font-weight: 600; color: var(--dim); font-size: var(--fs-sm); }
+  .me input { min-height: 44px; }
+  .sline { font-size: var(--fs-xs); color: var(--dim); margin: 0 2px 10px; }
+
+  dialog { border: 0; border-radius: var(--r-lg); padding: 20px; background: var(--surface); color: var(--ink); width: min(440px, calc(100vw - 32px)); max-height: 86vh; overflow: auto; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .45); }
+  dialog::backdrop { background: rgb(0 0 0 / .4); }
+  @media (max-width: 600px) { dialog { margin: auto 0 0; width: 100vw; max-width: 100vw; border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); } }
+  dialog h2 { font-size: var(--fs-xl); margin: 0 0 12px; }
+  dialog ol { padding-left: 1.3em; margin: 0 0 12px; }
+  dialog ol li { margin: 0 0 8px; }
+  .dlgacts { display: flex; gap: 10px; margin-top: 16px; }
+  .dlgacts .btn { flex: 1; }
+  .or { text-align: center; color: var(--dim); font-size: var(--fs-sm); margin: 14px 0; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50; background: rgb(28 28 30 / .94); color: #fff;
+    padding: 12px 18px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 600; max-width: calc(100vw - 32px); text-align: center; transition: opacity var(--t), transform var(--t) var(--ease); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="brand" id="homeBtn" aria-label="처음 화면"><img src="icon-192.png" alt=""><span>TTS 스피커</span></button>
+  <span class="sp"></span>
+  <button class="pillbtn" id="modeBtn" hidden>바꾸기</button>
+  <button class="pillbtn" id="helpBtn" aria-label="도움말">도움말</button>
+</header>
+
+<main>
+  <!-- 처음 화면 -->
+  <section id="home" hidden>
+    <h1>어떻게 쓸까요?</h1>
+    <button class="pick" data-mode="recv"><span class="em">🔊</span><b>이 기기를 스피커로</b><small>집에 켜 두는 PC · 태블릿 · 휴대폰</small></button>
+    <button class="pick" data-mode="send"><span class="em">📱</span><b>메시지 보내기</b><small>내 휴대폰이나 PC에서</small></button>
+    <p class="note">메시지는 무료 공개 중계 서버(ntfy.sh)를 거쳐 전달돼요. 민감한 내용은 보내지 마세요.</p>
+  </section>
+
+  <!-- 스피커 (받는 곳) -->
+  <section id="recv" hidden>
+    <div id="rWarn" class="warn" hidden></div>
+    <div id="rSetup">
+      <h1>스피커 준비</h1>
+      <div class="card">
+        <label class="f" for="rName">이 스피커 이름</label>
+        <input id="rName" maxlength="12" placeholder="예: 거실" autocomplete="off">
+        <div class="chips" id="rNameChips" style="margin-top:10px">
+          <button class="chip" data-n="거실">거실</button><button class="chip" data-n="아이 방">아이 방</button><button class="chip" data-n="안방">안방</button><button class="chip" data-n="주방">주방</button>
+        </div>
+      </div>
+      <button class="btn big" id="rStart">▶ 받기 시작</button>
+      <p class="small" style="text-align:center;margin-top:10px">누르면 소리가 켜지고 화면이 꺼지지 않게 돼요.</p>
+    </div>
+
+    <div id="rLive" hidden>
+      <div class="status" role="status"><span class="dot" id="rDot"></span><span id="rStat">연결 중…</span><span class="who" id="rWho"></span></div>
+      <button class="tapbar" id="rTap" hidden>🔈 소리를 켜려면 여기를 눌러 주세요</button>
+      <div class="msgcard idle" id="rMsg" aria-live="polite">
+        <div class="meta" id="rMeta"></div>
+        <div class="clock" id="rClock"></div>
+        <div class="bigtext" id="rText">메시지를 기다리고 있어요</div>
+        <div class="acts" id="rActs" hidden>
+          <button class="btn big" id="rPlay" hidden>▶ 듣기</button>
+          <button class="btn big ok" id="rAck">알겠어요 👍</button>
+          <div class="two"><button class="btn ghost sm" id="rAgain">🔁 다시 듣기</button><button class="btn ghost sm" id="rClose">닫기</button></div>
+        </div>
+      </div>
+      <div class="tools">
+        <button class="tool" id="rPairBtn" aria-expanded="false">📱 가족 연결</button>
+        <button class="tool" id="rTest">🔔 시험</button>
+        <button class="tool" id="rSetBtn" aria-expanded="false">⚙️ 설정</button>
+      </div>
+
+      <div class="card" id="rPair" hidden>
+        <h2>가족 휴대폰 연결</h2>
+        <div class="pair">
+          <div class="qr" id="rQr" aria-label="연결 QR"></div>
+          <div>
+            <p style="margin:0 0 6px">휴대폰 카메라로 QR을 찍으세요.</p>
+            <p class="small" style="margin:0">QR을 못 찍으면 <b>메시지 보내기 → 코드로 연결</b>에 입력</p>
+            <div class="code" id="rCode">— — —</div>
+            <div class="small" id="rCodeLeft"></div>
+            <div class="row" style="margin-top:12px;justify-content:inherit">
+              <button class="btn ghost sm" id="rCopy">🔗 링크 복사</button>
+              <button class="btn ghost sm" id="rNewCode">새 코드</button>
+            </div>
+          </div>
+        </div>
+        <p class="small" id="rSenders" style="margin:14px 0 0"></p>
+      </div>
+
+      <div class="card" id="rSet" hidden>
+        <h2>설정</h2>
+        <div class="set">
+          <div><label class="f" for="rName2">스피커 이름</label><input id="rName2" maxlength="12" autocomplete="off"></div>
+          <div>
+            <label class="f" for="rVoice">목소리</label>
+            <div class="row"><select id="rVoice" class="grow"></select><button class="btn ghost sm" id="rHear">들어 보기</button></div>
+          </div>
+          <div><label class="f" for="rRate">빠르기 <span id="rRateV"></span></label><input type="range" id="rRate" min="0.7" max="1.3" step="0.05"></div>
+          <div><label class="f" for="rPitch">높낮이 <span id="rPitchV"></span></label><input type="range" id="rPitch" min="0.8" max="1.2" step="0.05"></div>
+          <div><span class="f" style="display:block;font-size:var(--fs-sm);color:var(--dim);font-weight:600;margin:0 0 6px 2px">반복</span>
+            <div class="seg" id="rRep"><button data-v="1">1번</button><button data-v="2">2번</button><button data-v="3">3번</button></div></div>
+          <label class="line"><span>보낸 사람 이름도 읽기</span><input type="checkbox" class="sw" id="rReadName"></label>
+          <label class="line"><span>딩동 소리</span><input type="checkbox" class="sw" id="rChime"></label>
+          <div>
+            <label class="line"><span>조용한 시간 <small class="muted">(소리 없이 화면에만)</small></span><input type="checkbox" class="sw" id="rQOn"></label>
+            <div class="times" id="rQTimes"><input type="time" id="rQFrom" aria-label="시작"><span>~</span><input type="time" id="rQTo" aria-label="끝"></div>
+          </div>
+          <button class="btn danger sm" id="rReset">연결 새로 만들기 (가족 다시 연결)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>최근 메시지</h2>
+        <ul class="list" id="rHist"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 보내는 사람 -->
+  <section id="send" hidden>
+    <div id="sNone" hidden>
+      <h1>스피커 연결</h1>
+      <div class="card">
+        <p style="margin:0 0 6px"><b>스피커 화면의 QR</b>을 휴대폰 카메라로 찍어 주세요.</p>
+        <p class="small" style="margin:0 0 14px">QR이 안 되면 스피커의 <b>📱 가족 연결</b>에 보이는 6자리 코드를 넣으세요.</p>
+        <button class="btn big" id="sAdd0">코드로 연결</button>
+      </div>
+    </div>
+
+    <div id="sMain" hidden>
+      <div class="me" style="margin-top:10px"><label for="sMe">보내는 이름</label><input id="sMe" maxlength="10" placeholder="예: 엄마" autocomplete="off"></div>
+      <div class="chips" id="sTargets" style="margin:0 0 10px"></div>
+      <div class="sline" id="sLine" hidden></div>
+      <div class="card compose">
+        <textarea id="sText" maxlength="200" rows="3" placeholder="하고 싶은 말을 적어 주세요" aria-label="보낼 말"></textarea>
+        <div class="row"><span class="count grow" id="sCount">0 / 200</span><button class="btn" id="sSend" disabled>보내기</button></div>
+      </div>
+      <div class="card">
+        <div class="hrow"><h2>빠른 말</h2><button class="linkbtn" id="pEdit">편집</button></div>
+        <div class="phr" id="phr"></div>
+        <div class="row" id="pAddRow" hidden style="margin-top:10px"><input id="pNew" class="grow" maxlength="60" placeholder="새 말 추가"><button class="btn sm" id="pAdd">추가</button></div>
+      </div>
+      <div class="card">
+        <h2>보낸 메시지</h2>
+        <ul class="list" id="sList"></ul>
+      </div>
+      <div class="card">
+        <div class="hrow"><h2>내 스피커</h2><button class="linkbtn" id="sAdd">+ 추가</button></div>
+        <ul class="list spk" id="sSpk"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="addDlg">
+  <h2>스피커 연결</h2>
+  <label class="f" for="aCode">6자리 코드 <small>(스피커의 📱 가족 연결)</small></label>
+  <input id="aCode" inputmode="numeric" maxlength="7" placeholder="123456" autocomplete="off">
+  <div class="or">또는</div>
+  <label class="f" for="aLink">받은 연결 링크 붙여넣기</label>
+  <input id="aLink" placeholder="https://…" autocomplete="off">
+  <p class="small" id="aMsg" style="min-height:1.5em;margin:10px 2px 0"></p>
+  <div class="dlgacts"><button class="btn ghost" id="aCancel">닫기</button><button class="btn" id="aOk">연결</button></div>
+</dialog>
+
+<dialog id="helpDlg">
+  <h2>도움말</h2>
+  <ol>
+    <li>집에 둘 기기에서 이 주소를 열고 <b>이 기기를 스피커로 → ▶ 받기 시작</b>.</li>
+    <li>가족 휴대폰으로 스피커의 <b>QR</b>을 찍으면 연결돼요 (여러 명 가능).</li>
+    <li><b>PC</b>: Edge 탭을 열어 두세요. Edge 설정 → 시스템 및 성능 → <b>절전 모드로 전환하지 않을 사이트</b>에 이 주소 추가, Windows 절전은 <b>안 함</b>.</li>
+    <li><b>안드로이드</b>: <b>Chrome</b>으로 열고 화면을 켜 두세요 (충전기 연결).</li>
+    <li><b>아이폰</b> 스피커는 소리가 막힐 수 있어요 — 그땐 <b>▶ 듣기</b>를 눌러 주세요.</li>
+  </ol>
+  <p class="small">메시지는 무료 공개 중계 서버(ntfy.sh)를 거쳐요. 민감한 내용은 보내지 마세요.</p>
+  <div class="dlgacts"><button class="btn" id="helpClose">확인</button></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem("tts_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("tts_" + k, JSON.stringify(v)); } catch (e) {} },
+};
+const PUBLIC_URL = "https://s95722462-cell.github.io/ttsspeaker/";
+const RELAY = (() => {                    // 중계 서버: 언제나 ntfy.sh. 시험 때만 이 PC 안의 가짜 중계 (localhost·파일로 열었을 때만 허용)
+  try { const r = window.TTS_RELAY; if (typeof r === "string" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/$/.test(r) && (location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) return r; } catch (e) {}
+  return "https://ntfy.sh/";
+})();
+const MAXLEN = 200, CH_RE = /^ttsspk-[a-z0-9]{16,40}$/;
+const UA = navigator.userAgent;
+const IOS = /iP(hone|ad|od)/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const AND_EDGE = /Android/i.test(UA) && /EdgA\/|SamsungBrowser\//.test(UA);   // 안드로이드 Edge·삼성 인터넷: 목소리 목록이 비어 있음
+const TOUCH = matchMedia("(pointer: coarse)").matches;
+const HAS_TTS = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
+const now = () => Date.now(), nowSec = () => Math.floor(Date.now() / 1000);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function rid(n) { const A = "abcdefghijkmnpqrstuvwxyz23456789", a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(b => A[b % 32]).join(""); }
+function hm(ts) { const d = new Date(ts), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); return new Date().toDateString() === d.toDateString() ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`; }
+function toast(t, ms = 2600) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), ms); }
+function wake() { try { navigator.wakeLock?.request("screen").then(l => { wake.l = l; wake.ok = true; }).catch(() => { wake.ok = false; }); } catch (e) { wake.ok = false; } }
+wake.ok = null;
+
+// ================= 중계 (ntfy.sh) =================
+async function post(topic, obj, loud) {   // 실패하면 1·2·4·8초 뒤 다시
+  const body = JSON.stringify(obj);
+  for (let k = 0; k < 5; k++) {
+    try {
+      const r = await fetch(RELAY + topic, { method: "POST", body });
+      if (r.ok) return true;
+      if (r.status !== 429 && r.status < 500) return false;
+      if (loud && k === 1) toast("중계 서버가 바빠요 — 다시 보내는 중…");
+    } catch (e) { if (loud && k === 1) toast("인터넷 연결을 확인하는 중…"); }
+    await sleep(1000 * 2 ** k + Math.random() * 300);
+  }
+  return false;
+}
+// 받기: EventSource 로 듣고, 끊기면 1·2·4…30초 간격으로 마지막 받은 시각(since)부터 다시 연결
+function Sub(topic, since, onMsg, onState) {
+  let es = null, tries = 0, timer = 0, last = since, closed = false, alive = now(), state = "";
+  const seen = new Set();
+  const set = s => { if (s !== state) { state = s; onState && onState(s); } };
+  function open() {
+    clearTimeout(timer); if (closed) return;
+    try { es && es.close(); } catch (e) {}
+    if (typeof EventSource !== "function") { set("none"); return; }
+    set(tries ? "retry" : "connecting");
+    es = new EventSource(RELAY + topic + "/sse?since=" + last);
+    es.onopen = () => { tries = 0; alive = now(); set("ok"); };
+    es.addEventListener("keepalive", () => { alive = now(); });
+    es.onmessage = e => {
+      alive = now(); let d; try { d = JSON.parse(e.data); } catch (er) { return; }
+      if (!d || (d.event && d.event !== "message") || seen.has(d.id)) return;
+      seen.add(d.id); if (seen.size > 500) seen.delete(seen.values().next().value);
+      if (d.time > last) last = d.time;
+      let m; try { m = JSON.parse(d.message); } catch (er) { return; }
+      if (m && typeof m === "object") onMsg(m, d);
+    };
+    es.onerror = () => {
+      if (closed) return; try { es.close(); } catch (e) {} es = null; tries++; set("retry");
+      timer = setTimeout(open, Math.min(30000, 1000 * 2 ** Math.min(tries - 1, 5)) + Math.random() * 500);
+    };
+  }
+  const dog = setInterval(() => { if (!closed && es && now() - alive > 80000) { tries++; open(); } }, 10000);   // 조용히 끊긴 연결 (keepalive 가 안 옴)
+  open();
+  return {
+    retry() { if (!closed && state !== "ok") { tries = Math.max(tries, 1); open(); } },
+    close() { closed = true; clearTimeout(timer); clearInterval(dog); try { es && es.close(); } catch (e) {} },
+    get state() { return state; }, get since() { return last; },
+  };
+}
+
+// 6자리 코드 연결 — 코드 주제에는 암호화된 값만 남음 (ECDH P-256 + AES-GCM)
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const ecKeys = () => crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]);
+async function aesFrom(priv, pubB64) {
+  const pub = await crypto.subtle.importKey("raw", unb64(pubB64), { name: "ECDH", namedCurve: "P-256" }, false, []);
+  return crypto.subtle.deriveKey({ name: "ECDH", public: pub }, priv, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+const CAN_CODE = !!(window.crypto && crypto.subtle && window.isSecureContext !== false);
+
+// ================= 화면 바꾸기 =================
+let mode = "";
+function setMode(m) {
+  mode = m; document.body.dataset.mode = m || "home";
+  $("home").hidden = !!m; $("recv").hidden = m !== "recv"; $("send").hidden = m !== "send";
+  $("modeBtn").hidden = !m;
+  if (m) ls.set("mode", m);
+  if (m === "recv") recvInit();
+  if (m === "send") sendInit();
+  scrollTo(0, 0);
+}
+document.querySelectorAll(".pick").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+const goHome = () => {
+  if (mode === "recv" && rLive) { if (!confirm("스피커를 끌까요? 끄면 메시지를 받지 않아요.")) return; recvStop(); }
+  ls.set("mode", ""); setMode("");
+};
+$("homeBtn").onclick = goHome; $("modeBtn").onclick = goHome;
+$("helpBtn").onclick = () => $("helpDlg").showModal();
+$("helpClose").onclick = () => $("helpDlg").close();
+
+// ================= 소리: 딩동 =================
+let ctx = null, master = null;
+function audio() {
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination); } catch (e) { ctx = null; return null; }
+  }
+  if (ctx.state !== "running") { try { const p = ctx.resume(); p && p.catch && p.catch(() => {}); } catch (e) {} }
+  return ctx;
+}
+function bell(f, t0, dur = 1.5, a = 0.34) {
+  [[1, 1], [2, 0.16], [3.01, 0.07], [4.2, 0.03]].forEach(([m, k]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f * m;
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(a * k, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur / Math.sqrt(m));
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.1);
+  });
+}
+async function chime() {
+  if (!audio()) return;
+  const t0 = ctx.currentTime + 0.05; bell(880, t0); bell(698.46, t0 + 0.5, 1.8);
+  await sleep(1700);
+}
+
+// ================= 말하기 =================
+let voices = [];
+const DEFAULT_VOICE = /Brian Multilingual/;   // 온에어에서 고른 기본 목소리
+function score(v) {
+  const n = v.name, u = v.voiceURI || "";
+  return (/premium/i.test(u) ? 50 : /enhanced/i.test(u) ? 40 : 0) + (/natural/i.test(n) ? 100 : 0) + (/neural/i.test(n) ? 60 : 0) + (/online/i.test(n) ? 30 : 0)
+    + (/premium/i.test(n) ? 50 : 0) + (/enhanced|고품질/i.test(n) ? 40 : 0) + (/siri/i.test(n) ? 25 : 0) + (/google/i.test(n) ? 20 : 0) + (v.localService ? 1 : 0);
+}
+const isKo = v => /^ko([-_]|$)/i.test(v.lang);
+const isMulti = v => /multilingual/i.test(v.name) && /^en[-_]US/i.test(v.lang) && !isKo(v);
+function koVoices() {
+  const ko = voices.filter(isKo).sort((a, b) => score(b) - score(a));
+  const multi = voices.filter(isMulti).sort((a, b) => score(b) - score(a));
+  return [...ko, ...multi];
+}
+function pickVoice() {
+  const list = koVoices();
+  return list.find(v => v.voiceURI === R.voice) || list.find(v => DEFAULT_VOICE.test(v.name)) || list[0] || null;
+}
+function vName(v) {
+  const q = /premium/i.test(v.voiceURI || "") ? " (최고음질)" : /enhanced/i.test(v.voiceURI || "") ? " (고음질)" : "";
+  return (score(v) >= 100 ? "★★★ " : score(v) >= 40 ? "★★ " : "★ ") + v.name.replace(/Microsoft |Online |\(Natural\)| - .*$/g, "").trim() + q + (isMulti(v) ? " · 다국어" : "");
+}
+function loadVoices() {
+  try { voices = HAS_TTS ? speechSynthesis.getVoices() || [] : []; } catch (e) { voices = []; }
+  if (mode === "recv") { fillVoices(); recvWarn(); }
+}
+if (HAS_TTS) { try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} loadVoices(); setTimeout(loadVoices, 600); setTimeout(() => { loadVoices(); loadVoices.final = true; mode === "recv" && recvWarn(); }, 3000); }
+else loadVoices.final = true;
+
+function primeSpeech() {                 // 아이폰(WebKit): 누른 그 순간에 한 번 말을 시켜 두어야 나중 말도 나옴
+  audio();
+  if (!HAS_TTS || speechSynthesis.speaking) return;
+  try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; u.rate = 2; u.lang = "ko-KR"; speechSynthesis.speak(u); } catch (e) {}
+}
+let stopFlag = false;
+function sayOnce(text, local) {          // → "ok" | "blocked"(소리가 막힘) | "err" | "none"
+  return new Promise(res => {
+    if (!HAS_TTS) return res("none");
+    const v = local ? (koVoices().find(x => x.localService) || null) : pickVoice();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = v ? v.lang : "ko-KR"; if (isMulti(v || {})) u.lang = "ko-KR"; if (v) u.voice = v;
+    u.rate = R.rate; u.pitch = R.pitch; u.volume = 1;
+    let started = false, done = false, t1 = 0, t2 = 0;
+    const fin = r => { if (done) return; done = true; clearTimeout(t1); clearTimeout(t2); res(r); };
+    u.onstart = () => { started = true; };
+    u.onend = () => fin(started || !stopFlag ? "ok" : "ok");
+    u.onerror = e => { const er = e && e.error; fin(er === "not-allowed" ? "blocked" : er === "interrupted" || er === "canceled" ? "ok" : started ? "ok" : "err"); };
+    t1 = setTimeout(() => { if (!started) { try { speechSynthesis.cancel(); } catch (e) {} fin("blocked"); } }, 6000);
+    t2 = setTimeout(() => fin("ok"), 8000 + text.length * 450 / R.rate);
+    sayOnce.u = u;                        // Chrome: 참조가 없으면 onend 가 안 오는 버그
+    try { if (speechSynthesis.paused) speechSynthesis.resume(); speechSynthesis.speak(u); } catch (e) { fin("err"); }
+  });
+}
+function josa(w) { const c = w.charCodeAt(w.length - 1); if (c < 0xAC00 || c > 0xD7A3) return null; return (c - 0xAC00) % 28 ? "이" : "가"; }
+function spokenText(msg) {
+  if (!R.readName || !msg.from) return msg.text;
+  const j = josa(msg.from);
+  return (j ? `${msg.from}${j} 보냈어요. ` : `${msg.from}, `) + msg.text;
+}
+async function say(text) {               // 고른 목소리 → 안 되면 기기 안 목소리로 한 번 더
+  let r = await sayOnce(text);
+  if (r === "err") r = await sayOnce(text, true);
+  return r;
+}
+async function announce(msg) {           // 딩동 → 말하기 × 반복
+  stopFlag = false; $("rMsg").classList.add("speaking");
+  try {
+    if (R.chime) await chime();
+    for (let i = 0; i < R.rep && !stopFlag; i++) {
+      const r = await say(i === 0 ? spokenText(msg) : msg.text);
+      if (r === "blocked") return "blocked";
+      if (r === "none") return "none";
+      if (i < R.rep - 1) await sleep(1200);
+    }
+    return "ok";
+  } finally { $("rMsg").classList.remove("speaking"); }
+}
+function stopSpeak() { stopFlag = true; try { HAS_TTS && speechSynthesis.cancel(); } catch (e) {} }
+
+// ================= 스피커 (받는 곳) =================
+const R = Object.assign({ ch: "", name: "", voice: "", rate: 1, pitch: 1, rep: 1, readName: true, chime: true, qOn: false, qFrom: "23:00", qTo: "07:00", lastTs: 0, started: false, senders: [] }, ls.get("recv", {}));
+const saveR = () => ls.set("recv", R);
+let rHist = ls.get("rhist", []), rSeen = ls.get("rseen", []);
+let rSub = null, rLive = false, cur = null, queue = [], busy = false, unlocked = false, blocked = false, sleptMin = 0;
+function ensureCh() { if (!CH_RE.test(R.ch)) { R.ch = "ttsspk-" + rid(22); saveR(); } }
+function isQuiet(d = new Date()) {
+  if (!R.qOn) return false;
+  const m = d.getHours() * 60 + d.getMinutes(), p = s => { const [h, mi] = String(s).split(":").map(Number); return (h || 0) * 60 + (mi || 0); };
+  const a = p(R.qFrom), b = p(R.qTo);
+  return a === b ? false : a < b ? m >= a && m < b : m >= a || m < b;
+}
+function recvInit() {
+  ensureCh();
+  $("rName").value = R.name;
+  if (R.started) { recvGo(false); } else { $("rSetup").hidden = false; $("rLive").hidden = true; }
+  recvWarn();
+}
+document.querySelectorAll("#rNameChips .chip").forEach(b => b.onclick = () => { $("rName").value = b.dataset.n; });
+$("rStart").onclick = () => {
+  R.name = $("rName").value.trim().slice(0, 12) || "스피커"; R.started = true; saveR();
+  unlock(); recvGo(true);
+};
+function unlock() { primeSpeech(); wake(); unlocked = true; $("rTap").hidden = true; setTimeout(recvWarn, 800); }
+function recvGo(fromTap) {
+  ensureCh();
+  $("rSetup").hidden = true; $("rLive").hidden = false; $("rWho").textContent = "🔊 " + R.name;
+  rLive = true; fillVoices(); fillSet(); renderHist(); showIdle();
+  if (!fromTap && !unlocked) $("rTap").hidden = false;           // 새로 열었을 때: 한 번 눌러야 소리가 남
+  rSub && rSub.close();
+  const since = R.lastTs && R.lastTs > nowSec() - 43000 ? R.lastTs : nowSec() - 120;
+  rSub = Sub(R.ch, since, onRecv, recvState);
+  if (!R.senders.length) togglePair(true);
+  tick();
+}
+function recvStop() { rLive = false; rSub && rSub.close(); rSub = null; pairStop(); R.started = false; saveR(); stopSpeak(); try { wake.l && wake.l.release(); } catch (e) {} }
+function recvState(s) {
+  const M = { connecting: ["", "연결 중…"], ok: ["ok", "연결됨 · 메시지를 기다리는 중"], retry: ["retry", "끊김 — 다시 연결하는 중…"], none: ["bad", "이 브라우저는 받을 수 없어요"] }[s] || ["", s];
+  $("rDot").className = "dot " + M[0]; $("rStat").textContent = M[1];
+  if (s === "retry" && !navigator.onLine) $("rStat").textContent = "인터넷 끊김 — 연결되면 자동으로 이어져요";
+}
+document.addEventListener("pointerdown", () => { if (mode === "recv" && rLive && !unlocked) unlock(); }, { capture: true, passive: true });
+$("rTap").onclick = () => unlock();
+addEventListener("online", () => { rSub && rSub.retry(); sSubs.forEach(s => s.retry()); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  rSub && rSub.retry(); sSubs.forEach(s => s.retry());
+  if (rLive && wake.l && wake.l.released !== false) wake();
+});
+function tick() {                         // 시계 + 탭이 잠들었는지 확인
+  clearInterval(tick.iv); tick.last = now();
+  const draw = () => { const d = new Date(); $("rClock").textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+  draw();
+  tick.iv = setInterval(() => {
+    const gap = now() - tick.last; tick.last = now(); draw();
+    if (gap > 90000 && rLive) { sleptMin = Math.round(gap / 60000); recvWarn(); rSub && rSub.retry(); }
+  }, 5000);
+}
+
+function seenHas(id) { return rSeen.includes(id); }
+function seenAdd(id) { rSeen.push(id); if (rSeen.length > 300) rSeen = rSeen.slice(-300); ls.set("rseen", rSeen); }
+function onRecv(m, d) {
+  if (d.time && d.time > R.lastTs) { R.lastTs = d.time; saveR(); }
+  if (m.t !== "msg" || typeof m.text !== "string" || typeof m.id !== "string" || !m.text.trim()) return;
+  const id = m.id.slice(0, 40); if (seenHas(id)) return; seenAdd(id);
+  const msg = { id, from: String(m.from || "가족").slice(0, 20), text: m.text.trim().slice(0, MAXLEN), ts: d.time ? d.time * 1000 : now(), st: "new" };
+  if (!R.senders.includes(msg.from)) { R.senders = [msg.from, ...R.senders].slice(0, 12); saveR(); renderSenders(); }
+  if (now() - msg.ts > 10 * 60000) msg.missed = true;               // 꺼져 있던 동안 온 오래된 메시지: 기록에만
+  rHist.unshift(msg); rHist = rHist.slice(0, 40); ls.set("rhist", rHist); renderHist();
+  if (msg.missed) { if (!cur) showMsg(msg); return; }
+  queue.push(msg); pump();
+}
+async function pump() {
+  if (busy) return; busy = true;
+  try {
+    while (queue.length) {
+      const msg = queue.shift(); showMsg(msg, true);
+      if (isQuiet()) { msg.quiet = true; msg.st = "spoke"; post(R.ch, { t: "spoke", id: msg.id, quiet: 1, ts: now() }); }
+      else {
+        const r = await announce(msg);
+        if (r === "ok") { msg.st = "spoke"; post(R.ch, { t: "spoke", id: msg.id, ts: now() }); }
+        else { msg.st = "wait"; blocked = r === "blocked"; recvWarn(); }
+      }
+      saveHist(); if (cur === msg) showMsg(msg);
+      if (queue.length) await sleep(900);
+    }
+  } finally { busy = false; }
+}
+function saveHist() { ls.set("rhist", rHist); renderHist(); }
+function showIdle() {
+  cur = null; const c = $("rMsg"); c.className = "msgcard idle";
+  $("rMeta").textContent = ""; $("rClock").hidden = false; $("rText").textContent = "메시지를 기다리고 있어요"; $("rActs").hidden = true;
+}
+function showMsg(msg, fresh) {
+  cur = msg; const c = $("rMsg");
+  c.className = "msgcard"; if (fresh) { void c.offsetWidth; c.classList.add("fresh"); setTimeout(() => c.classList.remove("fresh"), 6000); }
+  $("rClock").hidden = true;
+  $("rMeta").innerHTML = `<b>${esc(msg.from)}</b> · ${hm(msg.ts)}${msg.quiet ? '<span class="quietTag">🔕 조용한 시간</span>' : ""}${msg.missed ? '<span class="quietTag">놓친 메시지</span>' : ""}`;
+  $("rText").textContent = msg.text;
+  $("rActs").hidden = false;
+  $("rPlay").hidden = !(msg.st === "wait");
+  $("rAck").disabled = !!msg.acked; $("rAck").textContent = msg.acked ? "✓ 보냈어요" : "알겠어요 👍";
+}
+$("rPlay").onclick = async () => {
+  const msg = cur; if (!msg) return; unlock(); $("rPlay").hidden = true;
+  const r = await announce(msg);
+  if (r === "ok") { msg.st = "spoke"; post(R.ch, { t: "spoke", id: msg.id, ts: now() }); saveHist(); }
+  else { $("rPlay").hidden = false; if (r === "none") toast("이 브라우저는 읽어 주기를 못 해요"); }
+};
+$("rAgain").onclick = async () => { if (!cur || busy) return; unlock(); stopSpeak(); await sleep(80); const r = await announce(cur); if (r === "ok" && cur.st === "wait") { cur.st = "spoke"; post(R.ch, { t: "spoke", id: cur.id, ts: now() }); saveHist(); showMsg(cur); } };
+$("rClose").onclick = () => { stopSpeak(); showIdle(); };
+$("rAck").onclick = async () => {
+  const msg = cur; if (!msg || msg.acked) return;
+  stopSpeak(); msg.acked = true; saveHist(); showMsg(msg);
+  const ok = await post(R.ch, { t: "ack", id: msg.id, from: R.name, ts: now() }, true);
+  if (!ok) { msg.acked = false; saveHist(); if (cur === msg) showMsg(msg); toast("보내지 못했어요 — 인터넷 연결을 확인해 주세요"); }
+  else toast("👍 보냈어요");
+};
+function renderHist() {
+  const ul = $("rHist");
+  if (!rHist.length) { ul.innerHTML = '<li class="empty">아직 받은 메시지가 없어요</li>'; return; }
+  ul.innerHTML = rHist.slice(0, 12).map((m, i) => `<li data-i="${i}"><div class="tx"><b>${esc(m.from)}</b> ${esc(m.text)}<div>${m.acked ? '<span class="badge ack">👍 확인</span>' : ""}${m.quiet ? '<span class="badge">🔕 화면만</span>' : ""}${m.missed ? '<span class="badge">놓침</span>' : ""}${m.st === "wait" ? '<span class="badge fail">소리 안 남</span>' : ""}</div></div><span class="tm">${hm(m.ts)}</span></li>`).join("");
+  ul.querySelectorAll("li[data-i]").forEach(li => li.onclick = () => showMsg(rHist[+li.dataset.i]));
+}
+$("rTest").onclick = async () => {
+  unlock(); if (busy) return;
+  const r = await announce({ from: "", text: `${R.name} 스피커가 준비됐어요.` });
+  if (r === "none") toast("이 브라우저는 읽어 주기를 못 해요");
+  else if (r === "blocked") toast("소리가 막혔어요 — 화면을 한 번 누르고 다시 해 보세요");
+};
+
+function recvWarn() {
+  const w = $("rWarn"), P = [];
+  if (!HAS_TTS) P.push("⚠️ <b>이 브라우저는 읽어 주기를 못 해요.</b> PC는 Edge, 안드로이드는 Chrome으로 열어 주세요.");
+  else if (!voices.length && loadVoices.final) P.push(AND_EDGE ? "⚠️ <b>이 브라우저에는 목소리가 없어요 — Chrome으로 열어 주세요.</b><br>(안드로이드는 Chrome에서만 소리가 나요)" : "⚠️ <b>목소리를 찾지 못했어요.</b> PC는 Edge, 안드로이드는 Chrome으로 열어 주세요.");
+  else if (voices.length && !koVoices().length) P.push("⚠️ <b>한국어 목소리가 없어요.</b> 안드로이드: 설정 → 텍스트 음성 변환 → <b>Google 음성 서비스</b>로 바꾸고 한국어를 받아 주세요.");
+  if (blocked) P.push("🔈 이 기기는 메시지가 오면 <b>▶ 듣기</b>를 눌러야 소리가 나요." + (IOS ? " (아이폰 제한)" : ""));
+  if (rLive && unlocked && TOUCH && wake.ok === false) P.push("💡 화면 꺼짐 방지가 안 돼요 — 기기 설정에서 화면 자동 꺼짐을 길게 해 주세요.");
+  if (sleptMin && rLive) P.push(`😴 이 탭이 약 ${sleptMin}분 동안 잠들었어요. <b>도움말</b>의 절전 설정을 확인해 주세요.`);
+  w.hidden = !P.length; w.innerHTML = P.map(p => `<p>${p}</p>`).join("");
+}
+
+// 설정
+function fillVoices() {
+  const sel = $("rVoice"), list = koVoices(), v = pickVoice();
+  sel.innerHTML = list.length ? list.map(x => `<option value="${esc(x.voiceURI)}"${v && x.voiceURI === v.voiceURI ? " selected" : ""}>${esc(vName(x))}</option>`).join("") : "<option>이 기기에 한국어 목소리 없음</option>";
+  sel.disabled = !list.length;
+}
+function fillSet() {
+  $("rName2").value = R.name; $("rRate").value = R.rate; $("rPitch").value = R.pitch;
+  $("rRateV").textContent = "×" + (+R.rate).toFixed(2); $("rPitchV").textContent = "×" + (+R.pitch).toFixed(2);
+  $("rRep").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === R.rep)));
+  $("rReadName").checked = R.readName; $("rChime").checked = R.chime; $("rQOn").checked = R.qOn;
+  $("rQFrom").value = R.qFrom; $("rQTo").value = R.qTo; $("rQTimes").style.opacity = R.qOn ? 1 : .45;
+}
+$("rName2").onchange = () => { R.name = $("rName2").value.trim().slice(0, 12) || R.name; saveR(); $("rWho").textContent = "🔊 " + R.name; drawQR(); };
+$("rVoice").onchange = () => { R.voice = $("rVoice").value; saveR(); };
+$("rRate").oninput = () => { R.rate = +$("rRate").value; saveR(); fillSet(); };
+$("rPitch").oninput = () => { R.pitch = +$("rPitch").value; saveR(); fillSet(); };
+$("rRep").onclick = e => { const b = e.target.closest("button"); if (!b) return; R.rep = +b.dataset.v; saveR(); fillSet(); };
+$("rReadName").onchange = () => { R.readName = $("rReadName").checked; saveR(); };
+$("rChime").onchange = () => { R.chime = $("rChime").checked; saveR(); };
+$("rQOn").onchange = () => { R.qOn = $("rQOn").checked; saveR(); fillSet(); };
+$("rQFrom").onchange = () => { R.qFrom = $("rQFrom").value || "23:00"; saveR(); };
+$("rQTo").onchange = () => { R.qTo = $("rQTo").value || "07:00"; saveR(); };
+$("rHear").onclick = async () => { unlock(); stopSpeak(); await sleep(60); stopFlag = false; const r = await say("안녕하세요. 밥 먹어라~"); if (r === "blocked") toast("소리가 막혔어요 — 다시 눌러 보세요"); };
+$("rSetBtn").onclick = () => { const o = $("rSet").hidden; $("rSet").hidden = !o; $("rSetBtn").setAttribute("aria-expanded", String(o)); if (o) { fillSet(); $("rSet").scrollIntoView({ behavior: "smooth", block: "start" }); } };
+$("rReset").onclick = () => {
+  if (!confirm("연결을 새로 만들까요?\n지금 연결된 가족 휴대폰은 QR을 다시 찍어야 해요.")) return;
+  R.ch = ""; R.senders = []; R.lastTs = 0; ensureCh(); saveR(); recvGo(true); drawQR(); toast("새 연결을 만들었어요");
+};
+
+// 가족 연결 (QR · 링크 · 6자리 코드)
+let pairSub = null, pairCode = "", pairExp = 0, pairIv = 0;
+function linkUrl() {
+  const base = /^https?:$/.test(location.protocol) ? location.href.split("#")[0].split("?")[0] : PUBLIC_URL;
+  return base + "#to=" + R.ch + "&n=" + encodeURIComponent(R.name);
+}
+function loadQR() { return window.QRCode ? Promise.resolve() : new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); }); }
+async function drawQR() {
+  const box = $("rQr"); if ($("rPair").hidden) return;
+  box.innerHTML = "<span class='small'>QR 만드는 중…</span>"; box.title = linkUrl();
+  try { await loadQR(); box.innerHTML = ""; new QRCode(box, { text: linkUrl(), width: 360, height: 360, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M }); box.title = linkUrl(); }
+  catch (e) { box.innerHTML = "<span class='small'>QR을 불러오지 못했어요 — 링크 복사를 써 주세요</span>"; }
+}
+function togglePair(force) {
+  const o = force === undefined ? $("rPair").hidden : force;
+  $("rPair").hidden = !o; $("rPairBtn").setAttribute("aria-expanded", String(o));
+  if (o) { drawQR(); pairStart(); renderSenders(); } else pairStop();
+}
+$("rPairBtn").onclick = () => togglePair();
+$("rNewCode").onclick = () => pairStart();
+$("rCopy").onclick = async () => {
+  const u = linkUrl();
+  try { if (navigator.share && TOUCH) { await navigator.share({ title: "TTS 스피커 연결", text: `${R.name} 스피커에 연결`, url: u }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(u); toast("🔗 링크를 복사했어요 — 카톡으로 보내 주세요"); }
+  catch (e) { prompt("이 링크를 복사해 가족에게 보내 주세요", u); }
+};
+function pairStart() {
+  pairStop();
+  if (!CAN_CODE) { $("rCode").textContent = ""; $("rCodeLeft").textContent = "이 브라우저에선 코드 연결이 안 돼요 — QR이나 링크를 써 주세요"; return; }
+  const a = new Uint32Array(1); crypto.getRandomValues(a); pairCode = String(100000 + (a[0] % 900000)); pairExp = now() + 10 * 60000;
+  $("rCode").textContent = pairCode.slice(0, 3) + " " + pairCode.slice(3);
+  const topic = "ttsspk-pair-" + pairCode;
+  pairSub = Sub(topic, nowSec() - 5, async m => {
+    if (m.t !== "hello" || typeof m.pub !== "string" || typeof m.nonce !== "string" || now() > pairExp) return;
+    try {
+      const kp = await ecKeys(), key = await aesFrom(kp.privateKey, m.pub), iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify({ ch: R.ch, name: R.name })));
+      const pub = b64(await crypto.subtle.exportKey("raw", kp.publicKey));
+      if (await post(topic, { t: "welcome", nonce: m.nonce.slice(0, 40), pub, iv: b64(iv), ct: b64(ct) })) {
+        const who = String(m.from || "가족").slice(0, 20);
+        if (!R.senders.includes(who)) { R.senders = [who, ...R.senders].slice(0, 12); saveR(); }
+        renderSenders(); toast(`📱 ${who} 연결됐어요`);
+      }
+    } catch (e) {}
+  });
+  const left = () => {
+    const s = Math.max(0, Math.round((pairExp - now()) / 1000));
+    if (!s) { $("rCodeLeft").textContent = "코드 시간이 지났어요 — 새 코드를 눌러 주세요"; $("rCode").textContent = "— — —"; clearInterval(pairIv); pairSub && pairSub.close(); pairSub = null; return; }
+    $("rCodeLeft").textContent = `코드는 ${Math.floor(s / 60)}분 ${String(s % 60).padStart(2, "0")}초 동안 쓸 수 있어요`;
+  };
+  left(); pairIv = setInterval(left, 1000);
+}
+function pairStop() { clearInterval(pairIv); pairSub && pairSub.close(); pairSub = null; }
+function renderSenders() { $("rSenders").innerHTML = R.senders.length ? "연결된 가족: <b>" + R.senders.map(esc).join(", ") + "</b>" : "아직 연결된 가족이 없어요."; }
+
+// ================= 보내는 사람 =================
+const DEFAULT_PHR = ["밥 먹어라~", "씻어라", "학원 갈 시간이야", "이제 자자", "숙제했니?", "잠깐 나와 볼래?"];
+let spk = ls.get("spk", []).filter(s => s && CH_RE.test(s.ch));
+let target = ls.get("target", "");
+let me = ls.get("me", "");
+let phr = ls.get("phr", DEFAULT_PHR);
+let sent = ls.get("sent", []);
+let pEditing = false, sSubs = new Map(), sStates = new Map();
+const saveSent = () => ls.set("sent", sent.slice(0, 40));
+function readLink(str) {               // '#to=<채널>&n=<이름>' (또는 ?to=)
+  try {
+    const u = new URL(str, location.href), q = new URLSearchParams((u.hash || "").replace(/^#/, "")), q2 = u.searchParams;
+    const ch = q.get("to") || q2.get("to"), n = q.get("n") || q2.get("n") || "스피커";
+    return ch && CH_RE.test(ch) ? { ch, name: n.slice(0, 12) } : null;
+  } catch (e) { return null; }
+}
+function addSpeaker(info, quiet) {
+  const old = spk.find(s => s.ch === info.ch);
+  if (old) { old.name = info.name || old.name; } else spk.push({ ch: info.ch, name: (info.name || "스피커").slice(0, 12) });
+  if (!target || (target !== "all" && !spk.some(s => s.ch === target))) target = info.ch;
+  if (!old) target = info.ch;
+  ls.set("spk", spk); ls.set("target", target);
+  if (!quiet) toast(old ? `‘${info.name}’ 스피커는 이미 연결돼 있어요` : `🔊 ‘${info.name}’ 스피커가 연결됐어요`);
+  if (mode === "send") sendInit();
+}
+function sendInit() {
+  $("sNone").hidden = !!spk.length; $("sMain").hidden = !spk.length;
+  $("sMe").value = me;
+  renderTargets(); renderPhr(); renderSent(); renderSpk(); syncSubs(); countText();
+}
+function curTargets() { return target === "all" ? spk : spk.filter(s => s.ch === target).concat(spk.some(s => s.ch === target) ? [] : spk.slice(0, 1)); }
+function renderTargets() {
+  const el = $("sTargets"); if (!spk.length) { el.innerHTML = ""; return; }
+  const t = target === "all" && spk.length > 1 ? "all" : (curTargets()[0] || {}).ch;
+  el.innerHTML = spk.map(s => `<button class="chip" data-ch="${s.ch}" aria-pressed="${s.ch === t}">🔊 ${esc(s.name)}</button>`).join("")
+    + (spk.length > 1 ? `<button class="chip" data-ch="all" aria-pressed="${t === "all"}">📢 전체</button>` : "");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => { target = b.dataset.ch; ls.set("target", target); renderTargets(); });
+}
+$("sMe").oninput = () => { me = $("sMe").value.trim().slice(0, 10); ls.set("me", me); };
+function countText() { const n = $("sText").value.length; $("sCount").textContent = `${n} / ${MAXLEN}`; $("sSend").disabled = !$("sText").value.trim(); }
+$("sText").oninput = countText;
+$("sText").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !TOUCH) { e.preventDefault(); $("sSend").click(); } };
+$("sSend").onclick = async () => { const t = $("sText").value; if (await send(t)) { $("sText").value = ""; countText(); } };
+async function send(text, again) {
+  text = String(text || "").trim().slice(0, MAXLEN); if (!text) return false;
+  if (!me) { toast("보내는 이름을 먼저 적어 주세요 (예: 엄마)"); $("sMe").focus(); return false; }
+  let ent = again;
+  if (!ent) {
+    const tg = curTargets(); if (!tg.length) { toast("연결된 스피커가 없어요"); return false; }
+    ent = { id: rid(14), text, from: me, ts: now(), to: tg.map(s => ({ ch: s.ch, name: s.name, st: "sending" })) };
+    sent.unshift(ent); sent = sent.slice(0, 40);
+  } else ent.to.forEach(t => { if (t.st === "fail") t.st = "sending"; });
+  saveSent(); renderSent(); syncSubs();
+  navigator.vibrate?.(20);
+  const res = await Promise.all(ent.to.filter(t => t.st === "sending").map(async t => {
+    const ok = await post(t.ch, { t: "msg", id: ent.id, from: ent.from, text: ent.text, ts: ent.ts }, true);
+    if (t.st === "sending") t.st = ok ? "sent" : "fail";
+    return ok;
+  }));
+  saveSent(); renderSent();
+  if (res.every(Boolean)) toast("보냈어요 ✓"); else toast("못 보낸 곳이 있어요 — ‘다시’를 눌러 주세요", 4000);
+  return true;
+}
+function stBadge(t, ent) {
+  const name = esc(t.name);
+  if (t.st === "ack") return `<span class="badge ack">👍 ${name} 확인</span>`;
+  if (t.st === "spoke") return `<span class="badge sp">${t.quiet ? "🔕" : "🔊"} ${name} ${t.quiet ? "화면만" : "말함"}</span>`;
+  if (t.st === "fail") return `<span class="badge fail">⚠ ${name} 못 보냄</span>`;
+  if (t.st === "sending") return `<span class="badge">${name} 보내는 중…</span>`;
+  return `<span class="badge">✓ ${name} 보냄${now() - ent.ts > 60000 ? " · 스피커가 꺼져 있을 수 있어요" : ""}</span>`;
+}
+function renderSent() {
+  const ul = $("sList");
+  if (!sent.length) { ul.innerHTML = '<li class="empty">아직 보낸 메시지가 없어요</li>'; return; }
+  ul.innerHTML = sent.slice(0, 15).map((e, i) => `<li data-i="${i}"><div class="tx">${esc(e.text)}<div>${e.to.map(t => stBadge(t, e)).join("")}${e.to.some(t => t.st === "fail") ? '<button class="linkbtn" data-re="' + i + '">다시</button>' : ""}</div></div><span class="tm">${hm(e.ts)}</span></li>`).join("");
+  ul.querySelectorAll("[data-re]").forEach(b => b.onclick = () => send(sent[+b.dataset.re].text, sent[+b.dataset.re]));
+}
+setInterval(() => { if (mode === "send" && sent.some(e => e.to.some(t => t.st === "sent"))) renderSent(); }, 15000);
+function onStatus(ch, m) {
+  if ((m.t !== "spoke" && m.t !== "ack") || typeof m.id !== "string") return;
+  const e = sent.find(x => x.id === m.id); if (!e) return;
+  const t = e.to.find(x => x.ch === ch); if (!t) return;
+  if (m.t === "ack") { if (t.st !== "ack") { t.st = "ack"; toast(`👍 ${t.name}: 알겠어요`); navigator.vibrate?.([30, 60, 30]); } }
+  else if (t.st !== "ack") { t.st = "spoke"; t.quiet = !!m.quiet; }
+  saveSent(); renderSent();
+}
+function syncSubs() {                   // 스피커마다 하나씩 듣기 (확인 표시 받기)
+  if (mode !== "send") return;
+  for (const [ch, s] of sSubs) if (!spk.some(x => x.ch === ch)) { s.close(); sSubs.delete(ch); }
+  spk.forEach(s => {
+    if (sSubs.has(s.ch)) return;
+    const pend = sent.filter(e => e.ts > now() - 12 * 3600e3 && e.to.some(t => t.ch === s.ch && t.st !== "ack"));
+    const since = pend.length ? Math.floor(Math.min(...pend.map(e => e.ts)) / 1000) - 60 : nowSec() - 60;
+    sSubs.set(s.ch, Sub(s.ch, since, m => onStatus(s.ch, m), st => { sStates.set(s.ch, st); subLine(); }));
+  });
+}
+function subLine() {
+  const bad = [...sStates.entries()].filter(([ch, st]) => st === "retry" && spk.some(s => s.ch === ch));
+  clearTimeout(subLine.t);
+  if (!bad.length) { $("sLine").hidden = true; return; }
+  subLine.t = setTimeout(() => { $("sLine").hidden = false; $("sLine").textContent = navigator.onLine ? "확인 표시 연결이 끊겼어요 — 다시 연결하는 중…" : "인터넷이 끊겼어요"; }, 4000);
+}
+
+// 빠른 말
+function renderPhr() {
+  const el = $("phr"); $("pEdit").textContent = pEditing ? "완료" : "편집"; $("pAddRow").hidden = !pEditing;
+  if (!pEditing) {
+    el.innerHTML = phr.length ? phr.map((p, i) => `<button class="p" data-i="${i}">${esc(p)}</button>`).join("") : '<div class="empty">편집을 눌러 자주 쓰는 말을 넣어 보세요</div>';
+    el.querySelectorAll("button.p").forEach(b => b.onclick = () => send(phr[+b.dataset.i]));
+  } else {
+    el.innerHTML = phr.map((p, i) => `<div class="ped"><span>${esc(p)}</span><button data-up="${i}" aria-label="위로"${i ? "" : " disabled"}>▲</button><button data-dn="${i}" aria-label="아래로"${i < phr.length - 1 ? "" : " disabled"}>▼</button><button class="x" data-x="${i}" aria-label="지우기">✕</button></div>`).join("");
+    el.querySelectorAll("[data-up]").forEach(b => b.onclick = () => movePhr(+b.dataset.up, -1));
+    el.querySelectorAll("[data-dn]").forEach(b => b.onclick = () => movePhr(+b.dataset.dn, 1));
+    el.querySelectorAll("[data-x]").forEach(b => b.onclick = () => { phr.splice(+b.dataset.x, 1); ls.set("phr", phr); renderPhr(); });
+  }
+}
+function movePhr(i, d) { const j = i + d; if (j < 0 || j >= phr.length) return; [phr[i], phr[j]] = [phr[j], phr[i]]; ls.set("phr", phr); renderPhr(); }
+$("pEdit").onclick = () => { pEditing = !pEditing; renderPhr(); };
+$("pAdd").onclick = () => { const v = $("pNew").value.trim().slice(0, 60); if (!v) return; phr.push(v); ls.set("phr", phr); $("pNew").value = ""; renderPhr(); };
+$("pNew").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); $("pAdd").click(); } };
+
+// 내 스피커
+function renderSpk() {
+  $("sSpk").innerHTML = spk.map((s, i) => `<li><div class="tx">🔊 <b>${esc(s.name)}</b></div><button class="linkbtn" data-rn="${i}">이름</button><button class="linkbtn" data-rm="${i}" style="color:var(--danger)">삭제</button></li>`).join("");
+  $("sSpk").querySelectorAll("[data-rn]").forEach(b => b.onclick = () => { const s = spk[+b.dataset.rn], n = prompt("스피커 이름", s.name); if (n && n.trim()) { s.name = n.trim().slice(0, 12); ls.set("spk", spk); sendInit(); } });
+  $("sSpk").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const s = spk[+b.dataset.rm]; if (!confirm(`‘${s.name}’ 스피커를 목록에서 뺄까요?`)) return; spk.splice(+b.dataset.rm, 1); ls.set("spk", spk); if (target === s.ch) { target = spk[0] ? spk[0].ch : ""; ls.set("target", target); } sendInit(); });
+}
+const openAdd = () => { $("aCode").value = ""; $("aLink").value = ""; $("aMsg").textContent = ""; $("aOk").disabled = false; $("addDlg").showModal(); };
+$("sAdd").onclick = openAdd; $("sAdd0").onclick = openAdd;
+$("aCancel").onclick = () => { joinAbort && joinAbort(); $("addDlg").close(); };
+let joinAbort = null;
+$("aOk").onclick = async () => {
+  const link = $("aLink").value.trim(), code = $("aCode").value.replace(/\D/g, "");
+  if (link) { const info = readLink(link); if (!info) { $("aMsg").textContent = "연결 링크가 아니에요"; return; } $("addDlg").close(); addSpeaker(info); return; }
+  if (code.length !== 6) { $("aMsg").textContent = "6자리 숫자를 넣어 주세요"; $("aCode").focus(); return; }
+  if (!CAN_CODE) { $("aMsg").textContent = "이 브라우저에선 코드 연결이 안 돼요 — QR이나 링크를 써 주세요"; return; }
+  $("aOk").disabled = true; $("aMsg").textContent = "스피커를 찾는 중…";
+  const info = await joinCode(code);
+  $("aOk").disabled = false;
+  if (info) { $("addDlg").close(); addSpeaker(info); }
+  else if ($("addDlg").open) $("aMsg").textContent = "찾지 못했어요 — 스피커 화면에 코드가 보이는지 확인해 주세요";
+};
+async function joinCode(code) {
+  const topic = "ttsspk-pair-" + code, kp = await ecKeys(), pub = b64(await crypto.subtle.exportKey("raw", kp.publicKey)), nonce = rid(16);
+  return new Promise(res => {
+    let done = false, hello = false, sub = null;
+    const fin = v => { if (done) return; done = true; clearTimeout(to); sub && sub.close(); joinAbort = null; res(v); };
+    const to = setTimeout(() => fin(null), 20000); joinAbort = () => fin(null);
+    sub = Sub(topic, nowSec() - 5, async m => {
+      if (m.t !== "welcome" || m.nonce !== nonce) return;
+      try {
+        const key = await aesFrom(kp.privateKey, m.pub), pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(m.iv) }, key, unb64(m.ct));
+        const info = JSON.parse(new TextDecoder().decode(pt));
+        if (info && CH_RE.test(info.ch)) fin({ ch: info.ch, name: String(info.name || "스피커").slice(0, 12) });
+      } catch (e) {}
+    }, st => { if (st === "ok" && !hello) { hello = true; post(topic, { t: "hello", nonce, pub, from: me || "가족" }); } });
+  });
+}
+
+// ================= 시작 =================
+function fromLink() {                  // QR·링크로 열었을 때 (이미 열린 탭에서 주소만 바뀐 경우도)
+  const link = readLink(location.href); if (!link) return false;
+  history.replaceState(null, "", location.pathname);
+  if (mode === "recv" && rLive) { toast("스피커 화면에서는 연결할 수 없어요 — 보내는 휴대폰에서 열어 주세요", 4000); return true; }
+  addSpeaker(link, true); ls.set("mode", "send"); setMode("send"); toast(`🔊 ‘${link.name}’ 스피커가 연결됐어요`);
+  return true;
+}
+addEventListener("hashchange", fromLink);
+if (!fromLink()) setMode(ls.get("mode", ""));
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
