@@ -11,13 +11,13 @@
 
 ## 웹앱 구조
 - `index.html` 하나 (CSS + IIFE 스크립트), `manifest.webmanifest`, `sw.js`, `icon-192/512.png`. 이 저장소가 원본.
-- **웹을 고쳐 push 할 때마다 `sw.js` 의 `CACHE` 번호를 올릴 것** (지금 `ttsspk-v2` → 다음 `ttsspk-v3`). `pc\` 만 고쳤으면 안 올려도 됨.
+- **웹을 고쳐 push 할 때마다 `sw.js` 의 `CACHE` 번호를 올릴 것** (지금 `ttsspk-v3` → 다음 `ttsspk-v4`). `pc\` 만 고쳤으면 안 올려도 됨.
 - 라이브러리: cdnjs qrcodejs 1.0.0. 새 것도 cdnjs 정확한 버전만.
 - 저장: localStorage 접두사 `tts_` (`ls` 도우미, 스피커 설정 `R` / `saveR`).
 
 ## 주요 동작
 - 중계 `RELAY` = 늘 `https://ntfy.sh/`. 시험 때만 `window.TTS_RELAY = "http://127.0.0.1:포트/"` (localhost·file 에서만 허용).
-- 스피커마다 주제 `ttsspk-<22자>` (`ensureCh`, 형식 `CH_RE`) = **비밀번호**. 메시지 JSON `{t: msg|spoke|ack|ask|hi, id, from, text, ts, v}`, 최대 200자(`MAXLEN`), id 로 중복 제거, `since=` 마지막 서버 시각으로 다시 연결(1→30초 backoff, keepalive 감시).
+- 스피커마다 주제 `ttsspk-<22자>` (`ensureCh`, 형식 `CH_RE`) = **비밀번호**. 메시지 JSON `{t: msg|spoke|ack|ask|hi|join, id, from, text, ts, v}`, 최대 200자(`MAXLEN`), id 로 중복 제거, `since=` 마지막 서버 시각으로 다시 연결(1→30초 backoff, keepalive 감시).
 - 연결 QR/링크: `#to=<채널>&n=<이름>` (해시라서 서버 로그에 안 남음, `hashchange` 처리). 6자리 코드 연결: 주제 `ttsspk-pair-<코드>` 에서 ECDH P-256 + AES-GCM 으로 채널 교환(10분).
 - 목소리: 기본 `DEFAULT_VOICE` = Brian Multilingual (Edge). 보내는 쪽 '내 목소리' 👨/👩/이름 → `v:{g,name}`, 스피커는 '보낸 사람 목소리 따르기'(`vKey` 로 이름 맞춤, 같은 성별 없으면 pitch 로 구분). '이름 읽기' 기본 끔.
 - 아이폰 스피커: 누른 순간에만 speak 허용 → `primeSpeech`; 6초 안에 말이 안 시작하면 ▶ 듣기 버튼. 안드로이드는 Chrome 만 웹 음성 목소리가 있음.

@@ -676,6 +676,7 @@ function seenAdd(id) { rSeen.push(id); if (rSeen.length > 300) rSeen = rSeen.sli
 function onRecv(m, d) {
   if (d.time && d.time > R.lastTs) { R.lastTs = d.time; saveR(); }
   if (m.t === "ask" && d.time > nowSec() - 120) { sayHi(); return; }
+  if (m.t === "join" && d.time > nowSec() - 120) { paired(String(m.from || "가족").slice(0, 20)); return; }
   if (m.t !== "msg" || typeof m.text !== "string" || typeof m.id !== "string" || !m.text.trim()) return;
   const id = m.id.slice(0, 40); if (seenHas(id)) return; seenAdd(id);
   const msg = { id, from: String(m.from || "가족").slice(0, 20), text: m.text.trim().slice(0, MAXLEN), ts: d.time ? d.time * 1000 : now(), st: "new" };
@@ -830,9 +831,7 @@ function pairStart() {
       const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify({ ch: R.ch, name: R.name, voices: myVoices() })));
       const pub = b64(await crypto.subtle.exportKey("raw", kp.publicKey));
       if (await post(topic, { t: "welcome", nonce: m.nonce.slice(0, 40), pub, iv: b64(iv), ct: b64(ct) })) {
-        const who = String(m.from || "가족").slice(0, 20);
-        if (!R.senders.includes(who)) { R.senders = [who, ...R.senders].slice(0, 12); saveR(); }
-        renderSenders(); toast(`📱 ${who} 연결됐어요`);
+        paired(String(m.from || "가족").slice(0, 20));
       }
     } catch (e) {}
   });
@@ -842,6 +841,11 @@ function pairStart() {
     $("rCodeLeft").textContent = `코드 남은 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
   left(); pairIv = setInterval(left, 1000);
+}
+function paired(who) {                  // 가족 휴대폰이 연결되면 알려 주고 QR 화면은 닫음
+  if (!R.senders.includes(who)) { R.senders = [who, ...R.senders].slice(0, 12); saveR(); }
+  renderSenders(); toast(`📱 ${who} 연결됐어요`);
+  if (!$("rPair").hidden) togglePair(false);
 }
 function pairStop() { clearInterval(pairIv); pairSub && pairSub.close(); pairSub = null; }
 function renderSenders() { $("rSenders").innerHTML = R.senders.length ? "연결된 가족: <b>" + R.senders.map(esc).join(", ") + "</b>" : "아직 연결된 가족이 없어요."; }
@@ -1043,7 +1047,8 @@ function fromLink() {                  // QR·링크로 열었을 때 (이미 �
   const link = readLink(location.href); if (!link) return false;
   history.replaceState(null, "", location.pathname);
   if (mode === "recv" && rLive) { toast("스피커 화면에서는 연결할 수 없어요 — 보내는 휴대폰에서 열어 주세요", 4000); return true; }
-  addSpeaker(link, true); ls.set("mode", "send"); setMode("send"); toast(`🔊 ‘${link.name}’ 스피커가 연결됐어요`);
+  addSpeaker(link, true); ls.set("mode", "send"); setMode("send");
+  post(link.ch, { t: "join", from: me || "가족", ts: now() }); toast(`🔊 ‘${link.name}’ 스피커가 연결됐어요`);
   return true;
 }
 addEventListener("hashchange", fromLink);
