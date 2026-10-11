@@ -11,7 +11,7 @@
 
 ## 웹앱 구조
 - `index.html` 하나 (CSS + IIFE 스크립트), `manifest.webmanifest`, `sw.js`, `icon-192/512.png`. 이 저장소가 원본.
-- **웹을 고쳐 push 할 때마다 `sw.js` 의 `CACHE` 번호를 올릴 것** (지금 `ttsspk-v4` → 다음 `ttsspk-v5`). `pc\` 만 고쳤으면 안 올려도 됨.
+- **웹을 고쳐 push 할 때마다 `sw.js` 의 `CACHE` 번호를 올릴 것** (지금 `ttsspk-v5` → 다음 `ttsspk-v6`). `pc\` 만 고쳤으면 안 올려도 됨.
 - 라이브러리: cdnjs qrcodejs 1.0.0. 새 것도 cdnjs 정확한 버전만.
 - 저장: localStorage 접두사 `tts_` (`ls` 도우미, 스피커 설정 `R` / `saveR`).
 

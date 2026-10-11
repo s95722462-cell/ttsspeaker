@@ -182,7 +182,13 @@
   .mev > label { white-space: nowrap; font-weight: 600; color: var(--dim); font-size: var(--fs-sm); }
   #modeSeg { display: flex; border-radius: var(--r-pill); }
   #modeSeg[hidden] { display: none; }
-  #modeSeg button { min-height: 40px; padding: 0 14px; border-radius: var(--r-pill); white-space: nowrap; }
+  #modeSeg button { min-height: 40px; padding: 0 12px; border-radius: var(--r-pill); white-space: nowrap; }
+  @media (max-width: 360px) { #modeSeg button { padding: 0 9px; } body:not([data-mode=home]) #helpBtn { font-size: 0; padding: 0; } body:not([data-mode=home]) #helpBtn::after { content: "?"; font-size: var(--fs-lg); } }
+  /* 둘 다: 받은 말은 위에 작게, 아래는 말하기 */
+  body[data-mode=both] .msgcard { min-height: 0; padding: 16px; }
+  body[data-mode=both] .msgcard .clock { display: none; }
+  body[data-mode=both] .msgcard.idle .bigtext { font-size: var(--fs); }
+  body[data-mode=both] #rHistCard { display: none; }
   .mev .seg { flex: 1; min-width: 200px; }
   .mev .seg button { padding: 0 4px; white-space: nowrap; }
   .vpick { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
@@ -208,7 +214,7 @@
 <header class="top">
   <button class="brand" id="homeBtn" aria-label="처음 화면"><img src="icon-192.png" alt=""><span>TTS 스피커</span></button>
   <span class="sp"></span>
-  <div class="seg" id="modeSeg" role="group" aria-label="보내기·받기" hidden><button data-m="send" aria-pressed="false">보내기</button><button data-m="recv" aria-pressed="false">받기</button></div>
+  <div class="seg" id="modeSeg" role="group" aria-label="듣기·말하기" hidden><button data-m="recv" aria-pressed="false">듣기</button><button data-m="both" aria-pressed="false">둘 다</button><button data-m="send" aria-pressed="false">말하기</button></div>
   <button class="pillbtn" id="helpBtn" aria-label="도움말">도움말</button>
 </header>
 
@@ -299,7 +305,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="rHistCard">
         <h2>최근 메시지</h2>
         <ul class="list" id="rHist"></ul>
       </div>
@@ -360,7 +366,7 @@
   <ol>
     <li>집에 둘 기기에서 이 주소를 열고 <b>이 기기를 스피커로 → ▶ 받기 시작</b>.</li>
     <li>가족 휴대폰으로 스피커의 <b>QR</b>을 찍으면 연결돼요 (여러 명 가능).</li>
-    <li>휴대폰끼리는 위의 <b>보내기 · 받기</b>를 바꿔 가며 써요. 서로 상대 QR을 한 번씩 찍으면 돼요 (받기 화면을 열어 둔 동안만 들려요).</li>
+    <li>휴대폰끼리는 서로 상대 QR을 한 번씩 찍고, 위에서 <b>듣기 · 둘 다 · 말하기</b>를 골라요 (앱을 열어 둔 동안만 들려요).</li>
     <li><b>PC</b>: Edge 탭을 열어 두세요. Edge 설정 → 시스템 및 성능 → <b>절전 모드로 전환하지 않을 사이트</b>에 이 주소 추가, Windows 절전은 <b>안 함</b>.</li>
     <li><b>안드로이드</b>: <b>Chrome</b>으로 열고 화면을 켜 두세요 (충전기 연결).</li>
     <li><b>아이폰</b> 스피커는 소리가 막힐 수 있어요 — 그땐 <b>▶ 듣기</b>를 눌러 주세요.</li>
@@ -461,27 +467,28 @@ const CAN_CODE = !!(window.crypto && crypto.subtle && window.isSecureContext !==
 
 // ================= 화면 바꾸기 =================
 let mode = "";
+const hasR = (m = mode) => m === "recv" || m === "both", hasS = (m = mode) => m === "send" || m === "both";   // 듣기 · 말하기 · 둘 다
 function setMode(m) {
   mode = m; document.body.dataset.mode = m || "home";
-  $("home").hidden = !!m; $("recv").hidden = m !== "recv"; $("send").hidden = m !== "send";
+  $("home").hidden = !!m; $("recv").hidden = !hasR(m); $("send").hidden = !hasS(m);
   $("modeSeg").hidden = !m;
   document.querySelectorAll("#modeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
   if (m) ls.set("mode", m);
-  if (m === "recv") recvInit();
-  if (m === "send") sendInit();
+  if (hasR(m)) recvInit();
+  if (hasS(m)) sendInit();
   scrollTo(0, 0);
 }
 document.querySelectorAll(".pick").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 const goHome = () => {
-  if (mode === "recv" && rLive) { if (!confirm("스피커를 끌까요? 끄면 메시지를 받지 않아요.")) return; recvStop(); }
+  if (hasR() && rLive) { if (!confirm("스피커를 끌까요? 끄면 메시지를 받지 않아요.")) return; recvStop(); }
   ls.set("mode", ""); setMode("");
 };
 $("homeBtn").onclick = goHome;
-document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => {   // 보내기 ↔ 받기 (한 기기에서 번갈아)
+document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => {   // 듣기 · 둘 다 · 말하기 (한 기기에서 바꿔 가며)
   const m = b.dataset.m; if (m === mode) return;
-  if (mode === "recv" && rLive) { if (!TOUCH && !confirm("보내기로 바꾸면 그동안은 소리로 받지 않아요. 바꿀까요?")) return; recvStop(true); }
+  if (hasR() && !hasR(m) && rLive) { if (!TOUCH && !confirm("말하기로 바꾸면 그동안은 소리로 받지 않아요. 바꿀까요?")) return; recvStop(true); }
   setMode(m);
-  if (m === "recv" && rLive) unlock();                          // 누른 순간이라 바로 소리 허용
+  if (hasR(m) && rLive) unlock();                          // 누른 순간이라 바로 소리 허용
 });
 $("helpBtn").onclick = () => $("helpDlg").showModal();
 $("helpClose").onclick = () => $("helpDlg").close();
@@ -566,9 +573,9 @@ function myVoices() {                    // 이 스피커가 가진 목소리 (�
 }
 function loadVoices() {
   try { voices = HAS_TTS ? speechSynthesis.getVoices() || [] : []; } catch (e) { voices = []; }
-  if (mode === "recv") { fillVoices(); recvWarn(); }
+  if (hasR()) { fillVoices(); recvWarn(); }
 }
-if (HAS_TTS) { try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} loadVoices(); setTimeout(loadVoices, 600); setTimeout(() => { loadVoices(); loadVoices.final = true; mode === "recv" && recvWarn(); }, 3000); }
+if (HAS_TTS) { try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} loadVoices(); setTimeout(loadVoices, 600); setTimeout(() => { loadVoices(); loadVoices.final = true; hasR() && recvWarn(); }, 3000); }
 else loadVoices.final = true;
 
 function primeSpeech() {                 // 아이폰(WebKit): 누른 그 순간에 한 번 말을 시켜 두어야 나중 말도 나옴
@@ -665,7 +672,7 @@ function recvState(s) {
   $("rDot").className = "dot " + M[0]; $("rStat").textContent = M[1];
   if (s === "retry" && !navigator.onLine) $("rStat").textContent = "인터넷 끊김 — 연결되면 자동으로 이어져요";
 }
-document.addEventListener("pointerdown", () => { if (mode === "recv" && rLive && !unlocked) unlock(); }, { capture: true, passive: true });
+document.addEventListener("pointerdown", () => { if (hasR() && rLive && !unlocked) unlock(); }, { capture: true, passive: true });
 $("rTap").onclick = () => unlock();
 addEventListener("online", () => { rSub && rSub.retry(); sSubs.forEach(s => s.retry()); });
 document.addEventListener("visibilitychange", () => {
@@ -913,7 +920,7 @@ function addSpeaker(info, quiet) {
   if (!old) target = info.ch;
   ls.set("spk", spk); ls.set("target", target);
   if (!quiet) toast(old ? `‘${info.name}’ 스피커는 이미 연결돼 있어요` : `🔊 ‘${info.name}’ 스피커가 연결됐어요`);
-  if (mode === "send") sendInit();
+  if (hasS()) sendInit();
 }
 function sendInit() {
   $("sNone").hidden = !!spk.length; $("sMain").hidden = !spk.length;
@@ -970,7 +977,7 @@ function renderSent() {
   ul.innerHTML = sent.slice(0, 15).map((e, i) => `<li data-i="${i}"><div class="tx">${esc(e.text)}<div>${e.to.map(t => stBadge(t, e)).join("")}${e.to.some(t => t.st === "fail") ? '<button class="linkbtn" data-re="' + i + '">다시</button>' : ""}</div></div><span class="tm">${hm(e.ts)}</span></li>`).join("");
   ul.querySelectorAll("[data-re]").forEach(b => b.onclick = () => send(sent[+b.dataset.re].text, sent[+b.dataset.re]));
 }
-setInterval(() => { if (mode === "send" && sent.some(e => e.to.some(t => t.st === "sent"))) renderSent(); }, 15000);
+setInterval(() => { if (hasS() && sent.some(e => e.to.some(t => t.st === "sent"))) renderSent(); }, 15000);
 function cleanVoices(a) { return Array.isArray(a) ? a.filter(v => v && typeof v.n === "string").slice(0, 12).map(v => ({ n: vCanon(v.n.slice(0, 30)), k: String(v.k || v.n).slice(0, 20), g: v.g === "m" || v.g === "f" ? v.g : "" })) : null; }
 function onStatus(ch, m) {
   if (m.t === "hi") { const s = spk.find(x => x.ch === ch), vs = cleanVoices(m.voices); if (s && vs) { s.voices = vs; s.vAt = now(); ls.set("spk", spk); renderMyVoice(); } return; }
@@ -982,7 +989,7 @@ function onStatus(ch, m) {
   saveSent(); renderSent();
 }
 function syncSubs() {                   // 스피커마다 하나씩 듣기 (확인 표시 받기)
-  if (mode !== "send") return;
+  if (!hasS()) return;
   for (const [ch, s] of sSubs) if (!spk.some(x => x.ch === ch)) { s.close(); sSubs.delete(ch); }
   spk.forEach(s => {
     if (sSubs.has(s.ch)) return;
@@ -1058,7 +1065,8 @@ async function joinCode(code) {
 function fromLink() {                  // QR·링크로 열었을 때 (이미 열린 탭에서 주소만 바뀐 경우도)
   const link = readLink(location.href); if (!link) return false;
   history.replaceState(null, "", location.pathname);
-  if (mode === "recv" && rLive) recvStop(true);
+  if (mode === "both") { addSpeaker(link, true); toast(`🔊 ‘${link.name}’ 스피커가 연결됐어요`); post(link.ch, { t: "join", from: me || "가족", ts: now() }); return true; }
+  if (hasR() && rLive) recvStop(true);
   addSpeaker(link, true); ls.set("mode", "send"); setMode("send");
   post(link.ch, { t: "join", from: me || "가족", ts: now() }); toast(`🔊 ‘${link.name}’ 스피커가 연결됐어요`);
   return true;
