@@ -12,7 +12,7 @@ import ctypes, ctypes.wintypes, urllib.request, urllib.error, urllib.parse, secr
 from datetime import datetime
 
 APP_NAME = "TTS 스피커"
-VERSION = "1.0"
+VERSION = "1.1.0"
 PUBLIC_URL = "https://s95722462-cell.github.io/ttsspeaker/"
 CH_RE = re.compile(r"^ttsspk-[a-z0-9]{16,40}$")
 MAXLEN = 200
@@ -65,6 +65,11 @@ class Store:
         st = self._load("state.json", {})
         self.hist = st.get("hist", [])[:40]; self.seen = st.get("seen", [])[-300:]
         if not CH_RE.match(self.cfg["ch"] or ""): self.cfg["ch"] = "ttsspk-" + rid(22); self.save()
+        if not self.cfg["setup"]:                            # 설치 프로그램에서 고른 '자동 실행' 을 따름
+            try:
+                import winreg
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\TTSSpeaker") as k: self.cfg["autostart"] = bool(winreg.QueryValueEx(k, "Autostart")[0])
+            except Exception: pass
     def _load(self, n, d):
         try:
             with open(os.path.join(HOME, n), encoding="utf-8") as f: v = json.load(f)
@@ -473,7 +478,6 @@ class App:
         self.win_built = False; self.popup = None; self.hist_win = None; self.qr_img = None
         self.root.after(150, self._poll)
         keep_awake(self.st["keepAwake"])
-        if self.st["autostart"] and not os.path.exists(lnk_path()) and not self.st["setup"]: set_autostart(True)
         self.connect()
         threading.Thread(target=self._msg_loop, daemon=True).start()
         threading.Thread(target=self._watch, daemon=True).start()
@@ -773,7 +777,7 @@ class App:
         t3 = ttk.Frame(nb, padding=14); nb.add(t3, text="💻 PC")
         self.auto_v = tk.BooleanVar(value=os.path.exists(lnk_path()) if self.st["setup"] else self.st["autostart"])
         ttk.Checkbutton(t3, text="PC 시작 시 자동 실행", variable=self.auto_v, command=self._auto_sel).pack(anchor="w")
-        ttk.Label(t3, text="켜 두면 PC를 켤 때 트레이(오른쪽 아래 ^)에서 저절로 듣기 시작해요.", style="Dim.TLabel", wraplength=490).pack(anchor="w", pady=(0, 10))
+        ttk.Label(t3, text="켜 두면 PC를 켤 때 트레이(오른쪽 아래 ^)에서 저절로 듣기 시작해요. 처음엔 ‘✓ 완료’를 누를 때 시작 프로그램에 등록해요.", style="Dim.TLabel", wraplength=490).pack(anchor="w", pady=(0, 10))
         self.awake_v = tk.BooleanVar(value=self.st["keepAwake"])
         ttk.Checkbutton(t3, text="절전 막기", variable=self.awake_v, command=lambda: (self.st.set("keepAwake", self.awake_v.get()), keep_awake(self.awake_v.get()))).pack(anchor="w")
         ttk.Label(t3, text="이 프로그램이 켜져 있는 동안 PC가 잠자기(절전)로 들어가지 않아요. 화면은 꺼져도 괜찮아요. PC가 잠들면 메시지를 못 받아요.", style="Dim.TLabel", wraplength=490).pack(anchor="w", pady=(0, 10))
@@ -801,7 +805,9 @@ class App:
         if self.spk.voices: self.st.set("voice", self.spk.voices[self.voice_cb.current()]["id"])
     def _out_sel(self): self.st.set("out", self._outs[self.out_cb.current()]["id"])
     def _auto_sel(self):
-        on = self.auto_v.get(); self.st.set("autostart", on); ok = set_autostart(on)
+        on = self.auto_v.get(); self.st.set("autostart", on)
+        if not self.st["setup"]: return                      # 처음엔 '✓ 완료'를 누를 때 만듦
+        ok = set_autostart(on)
         if on and not ok: self.auto_v.set(False); self.notify("자동 실행을 만들지 못했어요")
     def _name_changed(self):
         n = self.name_v.get().strip()[:12]
@@ -842,6 +848,7 @@ class App:
         if first:
             self.st.set("setup", True)
             if not self.st["name"]: self.st.set("name", "PC")
+            if self.win_built and self.auto_v.get(): set_autostart(True)      # 사용자가 켜 둔 채 완료를 누르면 그때 만듦
         self.root.withdraw(); self.pair_stop()
         if first: self.root.after(800, lambda: self.notify("트레이(오른쪽 아래 ^)에서 계속 듣고 있어요. 아이콘을 누르면 설정이 열려요."))
     # --- 알림 창 (오른쪽 아래, 맨 위) ---

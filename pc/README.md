@@ -8,14 +8,20 @@
 
 ## 설치 (아들 PC)
 
-1. `TTS스피커.exe` 를 USB로 옮겨서 바탕 화면이나 `문서` 같은 곳에 둬요 (설치 과정 없음).
-2. 두 번 누르면 창이 떠요. (처음에 "Windows의 PC 보호" 가 뜨면 **추가 정보 → 실행**)
-3. **이 스피커 이름** 에 `아들 방` 처럼 적어요.
-4. 가족 휴대폰으로 화면의 **QR** 을 찍어요 (한 번만 찍으면 계속 연결돼요).
+**설치 프로그램 (권장)** — `TTS스피커_설치_v1.1.exe`
+1. USB로 설치 파일을 옮겨 두 번 눌러요 (관리자 권한 필요 없음).
+2. **다음 → 설치** (바탕 화면 바로가기 · PC를 켤 때 자동 실행을 고를 수 있어요) → *TTS 스피커 바로 실행* 체크 → 마침.
+3. 뜬 창에 **이 스피커 이름** (예: `아들 방`) → 가족 휴대폰으로 **QR** 을 찍어요 (한 번만 찍으면 계속 연결돼요).
    QR이 안 되면 휴대폰 웹앱 → 메시지 보내기 → **코드로 연결** 에 6자리 숫자.
-5. **🔊 소리** 탭에서 **시험 듣기** 로 소리 확인 → **✓ 완료 — 트레이로**.
+4. **🔊 소리** 탭 → **시험 듣기** → **✓ 완료 — 트레이로**.
 
-PC를 다시 켜면 저절로 트레이에서 시작해요 (💻 PC 탭 → *PC 시작 시 자동 실행*).
+설치 위치: `%LOCALAPPDATA%\Programs\TTS스피커`. 지우기: 설정 → 앱 → *TTS 스피커* → 제거
+(켜져 있으면 끄고, 자동 실행도 지워요. 가족 연결 설정을 남길지 물어봐요).
+
+**폴더째 쓰기** — `TTS스피커_v1.1.zip` 을 풀어 `TTS스피커` 폴더를 통째로 복사 → 안의 `TTS스피커.exe` 실행.
+(폴더 안 `_internal` 을 지우거나 exe만 따로 옮기면 안 돼요.)
+
+자동 실행은 처음 **✓ 완료** 를 누를 때 등록돼요 (💻 PC 탭에서 언제든 켜고 끔).
 
 ## 꼭 확인할 것
 
@@ -43,7 +49,7 @@ PC를 다시 켜면 저절로 트레이에서 시작해요 (💻 PC 탭 → *PC 
 - 메시지는 무료 공개 중계 서버 [ntfy.sh](https://ntfy.sh)를 거쳐요. 민감한 내용은 보내지 마세요.
 - 꺼져 있던 동안 10분 넘게 지난 메시지는 읽지 않고 *최근 메시지* 에 ‘놓침’으로만 남겨요 (12시간까지).
 - 기록·설정: `%LOCALAPPDATA%\TTSSpeaker\` (`config.json`, `state.json`, `log.txt`)
-- 지우기: 트레이 → 종료, `exe` 지우기, 위 폴더 지우기, 시작 프로그램 폴더(`shell:startup`)의 `TTS 스피커` 바로가기 지우기.
+- 백신이 막으면: Windows 보안 → 바이러스 및 위협 방지 → 보호 기록 → 해당 항목 → 허용. 오진 신고: https://www.microsoft.com/wdsi/filesubmission
 
 ## 만들기 (개발)
 
@@ -51,5 +57,5 @@ PC를 다시 켜면 저절로 트레이에서 시작해요 (💻 PC 탭 → *PC 
 .\pc\build.ps1      # E:\claude_보관\ttsspk_pc\dist\TTS스피커.exe
 ```
 
-Python 3.13 + pystray · Pillow · comtypes(SAPI) · qrcode · cryptography · edge-tts, PyInstaller 로 exe 하나.
+Python 3.13 + pystray · Pillow · comtypes(SAPI) · qrcode · cryptography · edge-tts, PyInstaller onedir(UPX 안 씀, 이 PC에서 다시 빌드한 부트로더, 버전 정보) + Inno Setup 6 (`TTSSpeaker.iss`).
 시험할 때만 쓰는 환경 변수: `TTSSPK_RELAY`(http://127.0.0.1:포트/ 만), `TTSSPK_HOME`, `TTSSPK_FAKE_AUDIO=1`, `TTSSPK_CTL_PORT`, `TTSSPK_STARTUP_DIR`, `TTSSPK_LINK_BASE`.

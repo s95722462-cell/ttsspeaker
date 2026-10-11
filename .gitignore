@@ -4,3 +4,4 @@ pc/build/
 pc/dist/
 pc/*.spec
 __pycache__/
+*.zip
