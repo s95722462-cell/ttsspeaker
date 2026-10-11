@@ -378,13 +378,16 @@ class Speaker:
             return "ok"
         except Exception as e:
             log.exception("SAPI 말하기 실패: %s", e); return "err"
-    def _edge(self, text, voice):
+    def edge_file(self, text, voice, path):
         import asyncio, edge_tts
         rate = f"{int(self.app.st['rate']) * 10:+d}%"; pitch = f"{int(self.app.st['pitch']) * 4:+d}Hz"
-        path = os.path.join(tempfile.gettempdir(), f"ttsspk_{os.getpid()}.mp3")
         async def go():
             await asyncio.wait_for(edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(path), 15)
         asyncio.run(go())
+        return os.path.getsize(path)
+    def _edge(self, text, voice):
+        path = os.path.join(tempfile.gettempdir(), f"ttsspk_{os.getpid()}.mp3")
+        self.edge_file(text, voice, path)
         if self.stop.is_set(): return True
         return mci_play(path, int(self.app.st["volume"]) * 10, self.stop)
     def synth_wav(self, text, path, pref=None):
@@ -929,10 +932,11 @@ class App:
                             w.update(); x, y = w.winfo_rootx(), w.winfo_rooty()
                             ImageGrab.grab((x - 8, y - 32, x + w.winfo_width() + 8, y + w.winfo_height() + 8), all_screens=True).save(q["path"])
                         elif a == "wav": res["r"] = app.spk.call(lambda: app.spk.synth_wav(q["text"], q["path"], json.loads(q.get("pref", "{}"))))
+                        elif a == "edgefile": res["r"] = app.spk.edge_file(q["text"], q["voice"], q["path"])
                         elif a == "quit": app.quit()
                     except Exception as e: res["err"] = repr(e); log.exception("ctl")
                     ev.set()
-                if a == "wav": threading.Thread(target=run, daemon=True).start()
+                if a in ("wav", "edgefile"): threading.Thread(target=run, daemon=True).start()
                 else: app.ui(run)
                 ev.wait(30); self._j(res)
         ThreadingHTTPServer(("127.0.0.1", CTL_PORT), H).serve_forever()
