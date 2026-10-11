@@ -1,0 +1,6 @@
+pystray
+pillow
+comtypes
+qrcode[pil]
+cryptography
+edge-tts

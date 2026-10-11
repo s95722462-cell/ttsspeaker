@@ -1,0 +1,6 @@
+# PC 프로그램 만든 파일 (E: 에 만듦, 혹시 여기 생겨도 안 올림)
+*.exe
+pc/build/
+pc/dist/
+pc/*.spec
+__pycache__/
