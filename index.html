@@ -202,6 +202,9 @@
   dialog ol li { margin: 0 0 8px; }
   .dlgacts { display: flex; gap: 10px; margin-top: 16px; }
   .dlgacts .btn { flex: 1; }
+  .inBtns { display: grid; gap: 10px; }
+  .inBtns .btn { text-decoration: none; }
+  #inDlg .dlgacts .btn { padding: 0 10px; white-space: nowrap; }
   .or { text-align: center; color: var(--dim); font-size: var(--fs-sm); margin: 14px 0; }
 
   #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50; background: rgb(28 28 30 / .94); color: #fff;
@@ -359,6 +362,14 @@
   <input id="aLink" placeholder="https://…" autocomplete="off">
   <p class="small" id="aMsg" style="min-height:1.5em;margin:10px 2px 0"></p>
   <div class="dlgacts"><button class="btn ghost" id="aCancel">닫기</button><button class="btn" id="aOk">연결</button></div>
+</dialog>
+
+<dialog id="inDlg">
+  <h2>브라우저에서 열어 주세요</h2>
+  <p class="small" id="inWhy" style="margin:0 0 14px">카카오톡 안에서는 소리가 안 날 수 있어요.</p>
+  <div class="inBtns" id="inBtns"></div>
+  <p class="small" id="inHint" style="margin:12px 0 0"></p>
+  <div class="dlgacts"><button class="btn ghost" id="inCopy">🔗 링크 복사</button><button class="btn ghost" id="inStay">여기서 계속</button></div>
 </dialog>
 
 <dialog id="helpDlg">
@@ -1061,6 +1072,37 @@ async function joinCode(code) {
   });
 }
 
+// ================= 카톡 등 앱 안 브라우저 → 바깥 브라우저로 =================
+const KAKAO = /KAKAOTALK/i.test(UA), AND = /Android/i.test(UA);
+const INAPP = KAKAO || /NAVER\(inapp|Instagram|FBAN|FBAV|FB_IAB|Line\/|DaumApps|everytimeApp|BAND\/|Whale\/.*inapp/i.test(UA);
+function outLinks() {                    // 지금 주소(#to= 연결 정보 포함)를 바깥 브라우저로 여는 주소들
+  const href = location.href, rest = href.replace(/^https?:\/\//, ""), B = [];
+  if (AND) B.push(["Chrome으로 열기", "intent://" + rest + "#Intent;scheme=https;package=com.android.chrome;end"]);
+  else {
+    B.push(["Safari로 열기", KAKAO ? "kakaotalk://web/openExternal?url=" + encodeURIComponent(href) : "x-safari-https://" + rest]);
+    B.push(["Edge로 열기", "microsoft-edge-https://" + rest]);
+    B.push(["Chrome으로 열기", "googlechromes://" + rest]);
+  }
+  return B;
+}
+function inAppCheck() {
+  if (!(INAPP || AND_EDGE) || !/^https:$/.test(location.protocol) || sessionStorage.getItem("tts_inapp")) return;
+  $("inWhy").textContent = INAPP ? (KAKAO ? "카카오톡" : "이 앱") + " 안에서는 소리가 안 날 수 있어요." : "안드로이드는 Chrome에서만 소리가 나요.";
+  $("inHint").textContent = AND ? "" : "안 열리면 오른쪽 아래 ⋯ (또는 공유) → ‘Safari로 열기’";
+  const box = $("inBtns"); box.innerHTML = "";
+  outLinks().forEach(([t, u], i) => { const a = document.createElement("a"); a.className = "btn big" + (i ? " ghost" : ""); a.textContent = t; a.href = u; box.appendChild(a); });
+  $("inDlg").showModal();
+}
+$("inStay").onclick = () => {
+  try { sessionStorage.setItem("tts_inapp", "1"); } catch (e) {} $("inDlg").close();
+  if (inWait) { inWait = false; if (!fromLink()) setMode(ls.get("mode", "")); }
+};
+$("inDlg").addEventListener("cancel", e => { e.preventDefault(); $("inStay").click(); });
+$("inCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); toast("🔗 복사했어요 — Safari·Chrome 주소창에 붙여 넣어 주세요", 4000); }
+  catch (e) { prompt("이 주소를 복사해 브라우저에 붙여 넣어 주세요", location.href); }
+};
+
 // ================= 시작 =================
 function fromLink() {                  // QR·링크로 열었을 때 (이미 열린 탭에서 주소만 바뀐 경우도)
   const link = readLink(location.href); if (!link) return false;
@@ -1072,7 +1114,9 @@ function fromLink() {                  // QR·링크로 열었을 때 (이미 �
   return true;
 }
 addEventListener("hashchange", fromLink);
-if (!fromLink()) setMode(ls.get("mode", ""));
+inAppCheck();
+let inWait = INAPP && $("inDlg").open && !!readLink(location.href);   // 연결 링크는 바깥 브라우저에서 처리 (여기서 계속을 누르면 여기서)
+if (!inWait && !fromLink()) setMode(ls.get("mode", ""));
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
