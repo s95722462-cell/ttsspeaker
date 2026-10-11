@@ -54,7 +54,7 @@
 ## 만들기 (개발)
 
 ```powershell
-.\pc\build.ps1      # E:\claude_보관\ttsspk_pc\dist\TTS스피커.exe
+.\pc\build.ps1      # E:\claude_보관\ttsspk_pc\ : dist\TTS스피커\(폴더) · TTS스피커_v1.1.zip · TTS스피커_설치_v1.1.exe
 ```
 
 Python 3.13 + pystray · Pillow · comtypes(SAPI) · qrcode · cryptography · edge-tts, PyInstaller onedir(UPX 안 씀, 이 PC에서 다시 빌드한 부트로더, 버전 정보) + Inno Setup 6 (`TTSSpeaker.iss`).
