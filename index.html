@@ -204,7 +204,7 @@
   .dlgacts .btn { flex: 1; }
   .inBtns { display: grid; gap: 10px; }
   .inBtns .btn { text-decoration: none; }
-  #inDlg .dlgacts .btn { padding: 0 10px; white-space: nowrap; }
+  #inDlg .dlgacts .btn, #insDlg .dlgacts .btn { padding: 0 10px; white-space: nowrap; }
   .or { text-align: center; color: var(--dim); font-size: var(--fs-sm); margin: 14px 0; }
 
   #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50; background: rgb(28 28 30 / .94); color: #fff;
@@ -227,6 +227,7 @@
     <h1>어떻게 쓸까요?</h1>
     <button class="pick" data-mode="recv"><span class="em">🔊</span><b>이 기기를 스피커로</b><small>집에 켜 두는 PC · 태블릿 · 휴대폰</small></button>
     <button class="pick" data-mode="send"><span class="em">📱</span><b>메시지 보내기</b><small>내 휴대폰이나 PC에서</small></button>
+    <button class="btn ghost big" id="insBtn" hidden style="width:100%;margin-top:4px">📲 홈 화면에 추가</button>
     <p class="note">메시지는 무료 공개 중계 서버(ntfy.sh)를 거쳐 전달돼요. 민감한 내용은 보내지 마세요.</p>
   </section>
 
@@ -323,6 +324,7 @@
         <p style="margin:0 0 6px"><b>스피커 화면의 QR</b>을 휴대폰 카메라로 찍어 주세요.</p>
         <p class="small" style="margin:0 0 14px">QR이 안 되면 스피커의 <b>📱 가족 연결</b>에 보이는 6자리 코드를 넣으세요.</p>
         <button class="btn big" id="sAdd0">코드로 연결</button>
+        <button class="btn ghost big" id="sPaste" style="width:100%;margin-top:10px">📋 복사한 연결 붙여넣기</button>
       </div>
     </div>
 
@@ -370,6 +372,23 @@
   <div class="inBtns" id="inBtns"></div>
   <p class="small" id="inHint" style="margin:12px 0 0"></p>
   <div class="dlgacts"><button class="btn ghost" id="inCopy">🔗 링크 복사</button><button class="btn ghost" id="inStay">여기서 계속</button></div>
+</dialog>
+
+<dialog id="insDlg">
+  <h2>📲 홈 화면에 추가</h2>
+  <div id="insIOS">
+    <ol>
+      <li><b>공유 버튼 □↑</b>을 눌러요 <span class="small">(Safari는 아래, Chrome·Edge는 주소창 옆)</span></li>
+      <li><b>홈 화면에 추가 → 추가</b></li>
+      <li>홈 화면의 <b>TTS 스피커</b>로 열어요</li>
+    </ol>
+    <p class="small" id="insCarry" hidden style="margin:0">아이폰은 홈 화면 앱에 연결이 따로 저장돼요. <b>연결 복사</b>를 누른 뒤, 앱을 처음 열면 <b>📋 복사한 연결 붙여넣기</b>를 눌러 주세요.</p>
+  </div>
+  <div id="insAnd" hidden>
+    <button class="btn big" id="insGo" style="width:100%">설치하기</button>
+    <p class="small" id="insAndHint" style="margin:10px 0 0">설치 버튼이 안 되면 오른쪽 위 <b>⋮ → 홈 화면에 추가</b></p>
+  </div>
+  <div class="dlgacts"><button class="btn ghost" id="insCopy" hidden>📋 연결 복사</button><button class="btn ghost" id="insClose">닫기</button></div>
 </dialog>
 
 <dialog id="helpDlg">
@@ -1076,7 +1095,7 @@ async function joinCode(code) {
 const KAKAO = /KAKAOTALK/i.test(UA), AND = /Android/i.test(UA);
 const INAPP = KAKAO || /NAVER\(inapp|Instagram|FBAN|FBAV|FB_IAB|Line\/|DaumApps|everytimeApp|BAND\/|Whale\/.*inapp/i.test(UA);
 function outLinks() {                    // 지금 주소(#to= 연결 정보 포함)를 바깥 브라우저로 여는 주소들
-  const href = location.href, rest = href.replace(/^https?:\/\//, ""), B = [];
+  const href = location.href + (location.hash ? "&ins=1" : "#ins=1"), rest = href.replace(/^https?:\/\//, ""), B = [];
   if (AND) B.push(["Chrome으로 열기", "intent://" + rest + "#Intent;scheme=https;package=com.android.chrome;end"]);
   else {
     B.push(["Safari로 열기", KAKAO ? "kakaotalk://web/openExternal?url=" + encodeURIComponent(href) : "x-safari-https://" + rest]);
@@ -1103,6 +1122,39 @@ $("inCopy").onclick = async () => {
   catch (e) { prompt("이 주소를 복사해 브라우저에 붙여 넣어 주세요", location.href); }
 };
 
+// ================= 홈 화면에 추가 =================
+const STANDALONE = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+const INS = /[#&]ins=1(&|$)/.test(location.hash);
+let insEvt = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); insEvt = e; insShowBtn(); });
+addEventListener("appinstalled", () => { insEvt = null; $("insBtn").hidden = true; try { $("insDlg").close(); } catch (e) {} toast("📲 설치했어요 — 홈 화면에서 열어 주세요", 4000); });
+function insCan() { return !STANDALONE && !INAPP && !AND_EDGE && (IOS || insEvt || AND); }
+function insShowBtn() { $("insBtn").hidden = !insCan(); }
+const spkLinks = () => spk.map(s => PUBLIC_URL + "#to=" + s.ch + "&n=" + encodeURIComponent(s.name)).join("\n");
+function insOpen() {
+  if (!insCan()) return;
+  $("insIOS").hidden = !IOS; $("insAnd").hidden = IOS;
+  $("insGo").hidden = !insEvt; $("insAndHint").innerHTML = insEvt ? "설치 버튼이 안 되면 오른쪽 위 <b>⋮ → 홈 화면에 추가</b>" : "오른쪽 위 <b>⋮ → 홈 화면에 추가</b>(또는 <b>앱 설치</b>)";
+  const carry = IOS && spk.length > 0;              // 아이폰: Safari 와 홈 화면 앱은 저장 공간이 따로
+  $("insCarry").hidden = !carry; $("insCopy").hidden = !carry;
+  $("insDlg").showModal();
+}
+$("insBtn").onclick = insOpen;
+$("insClose").onclick = () => $("insDlg").close();
+$("insGo").onclick = async () => { if (!insEvt) return; const e = insEvt; insEvt = null; try { await e.prompt(); await e.userChoice; } catch (er) {} insShowBtn(); };
+$("insCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(spkLinks()); toast("📋 연결을 복사했어요 — 홈 화면 앱에서 붙여 넣어 주세요", 4000); }
+  catch (e) { prompt("이 내용을 복사해 두세요", spkLinks()); }
+};
+$("sPaste").onclick = async () => {
+  let t = "";
+  try { t = await navigator.clipboard.readText(); } catch (e) { t = prompt("복사한 연결을 붙여 넣어 주세요") || ""; }
+  const links = String(t).split(/\s+/).map(readLink).filter(Boolean);
+  if (!links.length) { toast("복사한 연결이 없어요 — QR이나 코드로 연결해 주세요", 3500); return; }
+  links.forEach(l => { addSpeaker(l, true); post(l.ch, { t: "join", from: me || "가족", ts: now() }); });
+  toast(`🔊 ${links.map(l => "‘" + l.name + "’").join(", ")} 연결됐어요`);
+};
+
 // ================= 시작 =================
 function fromLink() {                  // QR·링크로 열었을 때 (이미 열린 탭에서 주소만 바뀐 경우도)
   const link = readLink(location.href); if (!link) return false;
@@ -1115,8 +1167,12 @@ function fromLink() {                  // QR·링크로 열었을 때 (이미 �
 }
 addEventListener("hashchange", fromLink);
 inAppCheck();
+const insLater = INS && !$("inDlg").open;
+if (INS && !readLink(location.href)) history.replaceState(null, "", location.pathname);
 let inWait = INAPP && $("inDlg").open && !!readLink(location.href);   // 연결 링크는 바깥 브라우저에서 처리 (여기서 계속을 누르면 여기서)
 if (!inWait && !fromLink()) setMode(ls.get("mode", ""));
+insShowBtn();
+if (insLater) setTimeout(insOpen, 600);                  // 카톡에서 ‘Safari로 열기’로 왔으면 바로 설치 안내
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
